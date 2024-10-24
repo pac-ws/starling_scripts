@@ -145,8 +145,12 @@ Docker(){
 
 DisableCams(){
     log_status "Disabling cameras"
-    adb push custom_camera_config.txt /etc/modalai/.
-    adb shell 'voxl-configure-cameras C'
+    # Permission denied issue?
+    #adb push custom_camera_config.txt /data/modalai/.
+    #adb shell 'voxl-configure-cameras C'
+    # WAR
+    adb shell 'systemctl stop voxl-camera-server'
+    adb shell 'systemctl disable voxl-camera-server'
     return 0
 }
 
@@ -190,5 +194,3 @@ fi
 push_log
 
 rm $LOG_FILE
-
-
