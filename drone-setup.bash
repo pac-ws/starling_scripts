@@ -8,26 +8,20 @@ log_status() {
 }
 
 help() {
-    echo "Usage: $0 [-h|--help] [--wifi <ssid> <password>] [--ros <namespace>] [--offboard] [--docker]"
-    echo "Options:"
-    echo "  -h  Display this help message."
+    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker]"
     exit 0
 }
 
-params="$(getopt -o '' -l wifi:,ros:,offboard,docker --name "$(basename "$0")" -- "$@")"
+params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,help --name "$(basename "$0")" -- "$@")"
 echo "Debug: $params"
-
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to parse options."
-    help
-    exit 1
-fi
 
 eval set -- "$params"
 unset params
 
-SSID="blank"
-PASS_WD=""
+SSID_SET=false
+SSID=""
+PASS_SET=false
+PASS=""
 ROS_NAMESPACE=""
 OFFBOARD=false
 DOCKER=false
@@ -35,15 +29,23 @@ DOCKER=false
 while true; do
     echo "Debug: $1"
     case ${1} in
-        --wifi) 
-            WIFI=true
+        --ssid) 
+            SSID_SET=true
             SSID="${2}"
-            PASS_WD="${3}"
-            if [[ -z "$SSID" || -z "$PASS_WD" ]]; then
-                echo "Error: --wifi requires both SSID and password."
+            if [[ -z "$SSID" ]]; then
+                echo "Error: --ssid requires an ssid."
                 exit 1
             fi
-            shift 3
+            shift 2
+            ;;
+        --pass) 
+            PASS_SET=true
+            PASS="${2}"
+            if [[ -z "$PASS" ]]; then
+                echo "Error: --pass requires a password."
+                exit 1
+            fi
+            shift 2
             ;;
         --ros) 
             ROS=true
@@ -78,25 +80,15 @@ while true; do
     esac
 done
 
+echo "SSID: ${SSID}"
+echo "PASS: ${PASS}"
 echo "OFFBOARD: ${OFFBOARD}"
 echo "DOCKER: ${DOCKER}"
 
 # Connect to wifi 
 WiFi(){
     log_status "Connecting to WiFi"
-
-    adb shell "voxl-wifi station '${2}' ${3}'"
-
-    echo "Waiting for Starling to ping google.com..."
-    while true; do
-        if adb shell 'ping -c 1 -W 1 google.com &> /dev/null'; then
-            echo "Connected"
-            break
-        else
-            echo "."
-            sleep 2
-        fi
-    done
+    adb shell "voxl-wifi station '${SSID}' '${PASS}'"
     return 0
 }
 
@@ -143,10 +135,10 @@ Docker(){
 
 push_log() {
     log_status "Pushing log file to the drone"
-    adb push "$LOG_FILE" /data/
+    adb push "$LOG_FILE" /data
 }
 
-if [ "$WIFI" = true ]; then
+if [[ "$SSID_SET" = true && "$PASS_SET" = true ]]; then
     WiFi
 fi
 
@@ -164,6 +156,7 @@ fi
 
 # Store log file on drone with date
 push_log
+
 rm $LOG_FILE
 
 
