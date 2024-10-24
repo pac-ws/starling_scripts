@@ -8,11 +8,11 @@ log_status() {
 }
 
 help() {
-    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker]"
+    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker] [--disable-cams] [--params]"
     exit 0
 }
 
-params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,help --name "$(basename "$0")" -- "$@")"
+params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,help --name "$(basename "$0")" -- "$@")"
 echo "Debug: $params"
 
 eval set -- "$params"
@@ -23,8 +23,10 @@ SSID=""
 PASS_SET=false
 PASS=""
 ROS_NAMESPACE=""
+DISABLE_CAMS=false
 OFFBOARD=false
 DOCKER=false
+PARAMS=false
 
 while true; do
     echo "Debug: $1"
@@ -63,6 +65,14 @@ while true; do
             ;;
         --docker) 
             DOCKER=true
+            shift
+            ;;
+        --disable-cams) 
+            DISABLE_CAMS=true
+            shift
+            ;;
+        --params) 
+            PARAMS=true
             shift
             ;;
         -h|--help) 
@@ -133,6 +143,19 @@ Docker(){
     return 0
 }
 
+DisableCams(){
+    log_status "Disabling cameras"
+    adb push custom_camera_config.txt /etc/modalai/.
+    adb shell 'voxl-configure-cameras C'
+    return 0
+}
+
+Params(){
+    log_status "Setting up PX4 params (Outdoor GPS Baro)"
+    adb shell 'voxl-configure-px4-params -f /usr/share/modalai/px4_params/v1.14/EKF2_helpers/outdoor_gps_baro.params -n'
+    return 0
+}
+
 push_log() {
     log_status "Pushing log file to the drone"
     adb push "$LOG_FILE" /data
@@ -153,6 +176,15 @@ fi
 if [ "$DOCKER" = true ]; then
     Docker
 fi
+
+if [ "$DISABLE_CAMS" = true ]; then
+    DisableCams
+fi
+
+if [ "$PARAMS" = true ]; then
+    Params
+fi
+
 
 # Store log file on drone with date
 push_log
