@@ -140,6 +140,8 @@ Docker(){
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null'
     adb shell 'apt update'
     adb shell 'sudo apt install -y docker-ce docker-ce-cli containerd.io'
+
+    adb shell 'docker pull agarwalsaurav/pac:arm64'
     return 0
 }
 
