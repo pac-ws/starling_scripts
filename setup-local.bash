@@ -109,7 +109,7 @@ ROS(){
     apt install voxl-ros2-foxy voxl-mpa-to-ros2 -y
     voxl-configure-mpa-to-ros2
     sed -i "/param load/a param set XRCE_DDS_DOM_ID 10" /usr/bin/voxl-px4-start
-    sed -i 's/microdds_client start -t udp -h 127.0.0.1 -p 8888 */microdds_client start -t udp -h 127.0.0.1 -p 8888 -n ${1}/' /usr/bin/voxl-px4-start
+    sed -i "s/microdds_client start -t udp -h 127.0.0.1 -p 8888 */microdds_client start -t udp -h 127.0.0.1 -p 8888 -n '${ROS_NAMESPACE}'/" /usr/bin/voxl-px4-start
     echo "export ROS_DOMAIN_ID=10" >> /home/root/.bashrc
     return 0
 }

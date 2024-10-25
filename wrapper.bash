@@ -1,5 +1,6 @@
 #!bin/bash
 # Usage: ./wrapper.bash <ros_namespace>
-drone_setup.bash --ssid mrsl_perch -pass mrsl_12345
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash ${SCRIPT_DIR}/drone-setup.bash --ssid mrsl_perch --pass mrsl_12345
 sleep 30
-drone_setup.bash --ros $1 --offboard --docker --disable-cams --params
+bash ${SCRIPT_DIR}/drone-setup.bash --ros $1 --offboard --docker --disable-cams --params
