@@ -8,11 +8,11 @@ log_status() {
 }
 
 help() {
-    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker] [--disable-cams] [--params]"
+    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker] [--disable-cams] [--params] [--pac <namespace>]"
     exit 0
 }
 
-params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,help --name "$(basename "$0")" -- "$@")"
+params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,pac:,help --name "$(basename "$0")" -- "$@")"
 echo "Debug: $params"
 
 eval set -- "$params"
@@ -27,6 +27,7 @@ DISABLE_CAMS=false
 OFFBOARD=false
 DOCKER=false
 PARAMS=false
+PAC=false
 
 while true; do
     echo "Debug: $1"
@@ -75,6 +76,16 @@ while true; do
             PARAMS=true
             shift
             ;;
+        --pac) 
+            PAC=true
+            # TODO this should be combined with the other ros setup
+            ROS_NAMESPACE="${2}"
+            if [[ -z "$ROS_NAMESPACE" ]]; then
+                echo "Error: --ros requires a namespace."
+                exit 1
+            fi
+            shift 2
+            ;;
         -h|--help) 
             help 
             exit 0
@@ -99,6 +110,34 @@ echo "DOCKER: ${DOCKER}"
 WiFi(){
     log_status "Connecting to WiFi"
     voxl-wifi station '${SSID}' '${PASS}'
+    return 0
+}
+
+PAC(){
+    log_status "Installing PAC"
+    
+    log_status "Setting up Environment Variables"
+    echo "export ROS_NAMESPACE='${ROS_NAMESPACE}'" >> /home/root/.bashrc
+    echo "export pac_ws=/data/pac_ws" >> /home/root/.bashrc
+    export ROS_NAMESPACE=${ROS_NAMESPACE}
+    export PAC_WS=/data/pac_ws
+
+    # Clone pac_ws_setup
+    log_status "Cloning pac_ws_setup"
+    mkdir -p ${PAC_WS}
+    git clone https://github.com/pac-ws/pac_ws_setup.git ${PAC_WS}/pac_ws_setup
+
+    # Clone repositories (Use this to also update the repositories)
+    log_status "Cloning repositories"
+    cd ${PAC_WS}/pac_ws_setup
+    bash setup_pac_ws.bash -d ${PAC_WS}
+
+    log_status "Creating container"
+    bash pac_create_container.sh -d ${PAC_WS} --ns ${ROS_NAMESPACE}
+
+    log_status "Building packages"
+    colcon build --packages-select coveragecontrol_sim async_pac_gnn_py cc_rviz px4_homify starling_offboard_cpp starling_demos_cpp
+
     return 0
 }
 
@@ -182,6 +221,10 @@ fi
 
 if [ "$PARAMS" = true ]; then
     Params
+fi
+
+if [ "$PAC" = true ]; then
+    PAC
 fi
 
 

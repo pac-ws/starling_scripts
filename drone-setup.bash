@@ -8,11 +8,11 @@ log_status() {
 }
 
 help() {
-    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker] [--disable-cams] [--params]"
+    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker] [--disable-cams] [--params] [--pac]"
     exit 0
 }
 
-params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,help --name "$(basename "$0")" -- "$@")"
+params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,pac,help --name "$(basename "$0")" -- "$@")"
 echo "Debug: $params"
 
 eval set -- "$params"
@@ -27,6 +27,7 @@ DISABLE_CAMS=false
 OFFBOARD=false
 DOCKER=false
 PARAMS=false
+PAC=false
 
 while true; do
     echo "Debug: $1"
@@ -75,6 +76,10 @@ while true; do
             PARAMS=true
             shift
             ;;
+        --pac)
+            PAC=true
+            shift
+            ;;
         -h|--help) 
             help 
             exit 0
@@ -99,6 +104,16 @@ echo "DOCKER: ${DOCKER}"
 WiFi(){
     log_status "Connecting to WiFi"
     adb shell "voxl-wifi station '${SSID}' '${PASS}'"
+    return 0
+}
+
+PAC(){
+    log_status "Installing PAC"
+    adb push pac_create_container.sh /data
+    adb shell 'chmod +x /data/pac_create_container.sh'
+
+    adb push ~/Penn/Westpoint/pac_ws/ /data
+    adb shell './data/pac_create_container.sh -d /data/pac_ws'
     return 0
 }
 
@@ -189,6 +204,10 @@ fi
 
 if [ "$PARAMS" = true ]; then
     Params
+fi
+
+if [ "$PAC" = true ]; then
+    PAC
 fi
 
 
