@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define the list of IP addresses and corresponding namespaces
-IP_ADDRESSES=("192.168.129.241")  # Add your IPs here
-NAMESPACES=("r5")
+IP_ADDRESSES=("192.168.129.222")  # Add your IPs here
+NAMESPACES=("r10")
 PASSWORD="oelinux123"  # Replace with the actual root password
 LOCAL_SCRIPT="setup-local.bash"  # Ensure this file is present in the same directory
 
@@ -20,9 +20,10 @@ execute_remote() {
     echo "Starting transfer and setup for $ip with namespace $namespace"
     
     sshpass -p "$PASSWORD" scp "$LOCAL_SCRIPT" root@"$ip":/data/
-    #sshpass -p "$PASSWORD" ssh root@"$ip" "chmod +x /data/$LOCAL_SCRIPT && /data/$LOCAL_SCRIPT --ros $namespace --params --docker --disable-cams --pac"
+    sshpass -p "$PASSWORD" ssh root@"$ip" "chmod +x /data/$LOCAL_SCRIPT && /data/$LOCAL_SCRIPT --ros $namespace --params --docker --disable-cams --pac $namespace"
 
-    sshpass -p "$PASSWORD" ssh root@"$ip" "chmod +x /data/$LOCAL_SCRIPT && /data/$LOCAL_SCRIPT --pac $namespace"
+    #sshpass -p "$PASSWORD" ssh -T root@"$ip" /data/pac_ws/pac_ws_setup/pac_create_container.sh -d /data/pac_ws --ns r6
+    #sshpass -p "$PASSWORD" ssh -T root@"$ip" "chmod +x /data/$LOCAL_SCRIPT && /data/$LOCAL_SCRIPT --pac $namespace"
     
     if [ $? -eq 0 ]; then
         echo "Successfully processed $ip"

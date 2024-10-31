@@ -28,6 +28,7 @@ OFFBOARD=false
 DOCKER=false
 PARAMS=false
 PAC=false
+NAMESPACE=""
 
 while true; do
     echo "Debug: $1"
@@ -79,9 +80,9 @@ while true; do
         --pac) 
             PAC=true
             # TODO this should be combined with the other ros setup
-            ROS_NAMESPACE="${2}"
-            if [[ -z "$ROS_NAMESPACE" ]]; then
-                echo "Error: --ros requires a namespace."
+            NAMESPACE="${2}"
+            if [[ -z "$NAMESPACE" ]]; then
+                echo "Error: --pac requires a namespace."
                 exit 1
             fi
             shift 2
@@ -117,10 +118,15 @@ PAC(){
     log_status "Installing PAC"
     
     log_status "Setting up Environment Variables"
-    echo "export ROS_NAMESPACE='${ROS_NAMESPACE}'" >> /home/root/.bashrc
-    echo "export pac_ws=/data/pac_ws" >> /home/root/.bashrc
-    export ROS_NAMESPACE=${ROS_NAMESPACE}
+    echo "export ROS_NAMESPACE='${NAMESPACE}'" >> /home/root/.bashrc
+    echo "export PAC_WS=/data/pac_ws" >> /home/root/.bashrc
+    export ROS_NAMESPACE=${NAMESPACE}
     export PAC_WS=/data/pac_ws
+
+    source /home/root/.bashrc
+
+    echo "PAC_WS: ${PAC_WS}"
+    echo "ROS_NAMESPACE: ${ROS_NAMESPACE}"
 
     # Clone pac_ws_setup
     log_status "Cloning pac_ws_setup"
@@ -132,11 +138,11 @@ PAC(){
     cd ${PAC_WS}/pac_ws_setup
     bash setup_pac_ws.bash -d ${PAC_WS}
 
-    log_status "Creating container"
-    bash pac_create_container.sh -d ${PAC_WS} --ns ${ROS_NAMESPACE}
+    #log_status "Creating container"
+    #bash pac_create_container.sh -d /data/pac_ws --ns ${ROS_NAMESPACE}
 
-    log_status "Building packages"
-    colcon build --packages-select coveragecontrol_sim async_pac_gnn_py cc_rviz px4_homify starling_offboard_cpp starling_demos_cpp
+    #log_status "Building packages"
+    #docker exec pac-m0054 bash -c "source /root/.bashrc && source /opt/ros/humble/setup.bash && source /opt/ros/extra/install/local_setup.bash && colcon build --packages-select coveragecontrol_sim async_pac_gnn_py cc_rviz px4_homify starling_offboard_cpp starling_demos_cpp"
 
     return 0
 }
