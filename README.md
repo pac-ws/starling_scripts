@@ -8,6 +8,6 @@ git clone https://github.com/wvat/starling_scripts.git
 ```
 export NAMESPACE=r0
 cd /data/starling_scripts
-bash setup-local.sh --ros ${NAMESPACE} --params --docker --disable-cams --pac ${NAMESPACE}
+bash setup-local.bash --ros ${NAMESPACE} --params --docker --disable-cams --pac ${NAMESPACE}
 ```
 
