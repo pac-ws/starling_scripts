@@ -120,15 +120,11 @@ echo "DOCKER: ${DOCKER}"
 # System check
 SystemStatus(){
     log_status "Checking system status"
-    if [ "$(id -u)" != "0" ]; then
-        log_status "This script must be run as root"
-        exit 1
-    fi
 
     # Docker 
     echo -n "Docker..."
     if command -v docker &> /dev/null; then
-        echo -e "${GREEN}PASS${NC}S"
+        echo -e "${GREEN}PASS${NC}"
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -136,7 +132,7 @@ SystemStatus(){
     # ROS2
     echo -n "ROS2 Foxy..."
     if command -v ros2 &> /dev/null; then
-        echo -e "${GREEN}PASS${NC}S"
+        echo -e "${GREEN}PASS${NC}"
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -144,9 +140,9 @@ SystemStatus(){
     # PX4
     echo -n "PX4 Namespace..."
     if grep -q "microdds_client start -t udp -h 127.0.0.1 -p 8888 -n '\${ROS_NAMESPACE}'" /usr/bin/voxl-px4-start; then
-        echo -e "${GREEN}PX4 Namespace${NC} is set up"
+        echo -e "${GREEN}PASS{NC}"
     else
-        echo -e "${GREEN}PX4 Namespace${NC} is set up"
+        echo -e "${RED}FAIL${NC}"
     fi
 
     echo -n "PX4 Domain ID..."
@@ -168,6 +164,15 @@ SystemStatus(){
     echo -n "Offboard mode..."
     if grep -q '"offboard_mode":[[:space:]]*"off"' /etc/modalai/voxl-vision-hub.conf; then
         echo -e "${GREEN}PASS${NC}S"
+    else
+        echo -e "${RED}FAIL${NC}"
+    fi
+
+    # PAC
+    # Simple directory check for now
+    echo -n "PAC..."
+    if [ -d /data/pac_ws ]; then
+        echo -e "${GREEN}PASS${NC}"
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -273,7 +278,7 @@ push_log() {
     log_status "Pushing log file to the drone"
     cp $LOG_FILE /data/setup.log
 }
-if ["STATUS" = true]; then
+if [ "$STATUS" = true ]; then
     SystemStatus
 fi
 
