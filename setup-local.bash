@@ -2,17 +2,22 @@
 
 LOG_FILE="/tmp/setup.log"
 
+GREEN="\033[0;32m"
+RED="\033[0;31m"
+YELLOW="\033[0;33m"
+NC="\033[0m" # No Color
+
 log_status() {
     local message="$1"
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$LOG_FILE"
 }
 
 help() {
-    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker] [--disable-cams] [--params] [--pac <namespace>]"
+    echo "Usage: $0 [-h|--help] [--ssid <ssid>] [--pass <password>] [--ros <namespace>] [--offboard] [--docker] [--disable-cams] [--params] [--pac <namespace>] [--status]"
     exit 0
 }
 
-params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,pac:,help --name "$(basename "$0")" -- "$@")"
+params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,status,pac:,help --name "$(basename "$0")" -- "$@")"
 echo "Debug: $params"
 
 eval set -- "$params"
@@ -27,6 +32,7 @@ DISABLE_CAMS=false
 OFFBOARD=false
 DOCKER=false
 PARAMS=false
+STATUS=false
 PAC=false
 NAMESPACE=""
 
@@ -77,6 +83,10 @@ while true; do
             PARAMS=true
             shift
             ;;
+        --status) 
+            STATUS=true
+            shift
+            ;;
         --pac) 
             PAC=true
             # TODO this should be combined with the other ros setup
@@ -106,6 +116,65 @@ echo "SSID: ${SSID}"
 echo "PASS: ${PASS}"
 echo "OFFBOARD: ${OFFBOARD}"
 echo "DOCKER: ${DOCKER}"
+
+# System check
+SystemStatus(){
+    log_status "Checking system status"
+    if [ "$(id -u)" != "0" ]; then
+        log_status "This script must be run as root"
+        exit 1
+    fi
+
+    # Docker 
+    echo -n "Docker..."
+    if command -v docker &> /dev/null; then
+        echo -e "${GREEN}PASS${NC}S"
+    else
+        echo -e "${RED}FAIL${NC}"
+    fi
+
+    # ROS2
+    echo -n "ROS2 Foxy..."
+    if command -v ros2 &> /dev/null; then
+        echo -e "${GREEN}PASS${NC}S"
+    else
+        echo -e "${RED}FAIL${NC}"
+    fi
+    
+    # PX4
+    echo -n "PX4 Namespace..."
+    if grep -q "microdds_client start -t udp -h 127.0.0.1 -p 8888 -n '\${ROS_NAMESPACE}'" /usr/bin/voxl-px4-start; then
+        echo -e "${GREEN}PX4 Namespace${NC} is set up"
+    else
+        echo -e "${GREEN}PX4 Namespace${NC} is set up"
+    fi
+
+    echo -n "PX4 Domain ID..."
+    if grep -q "param set XRCE_DDS_DOM_ID 10" /usr/bin/voxl-px4-start; then
+        echo -e "${GREEN}PASS${NC}S"
+    else
+        echo -e "${RED}FAIL${NC}"
+    fi
+    
+    # Params
+    echo -n "PX4 Params..."
+    if px4-param compare EKF2_EV_CTRL 0; then
+        echo -e "${GREEN}PASS${NC}S"
+    else
+        echo -e "${RED}FAIL${NC}"
+    fi
+   
+    # Offboard
+    echo -n "Offboard mode..."
+    if grep -q '"offboard_mode":[[:space:]]*"off"' /etc/modalai/voxl-vision-hub.conf; then
+        echo -e "${GREEN}PASS${NC}S"
+    else
+        echo -e "${RED}FAIL${NC}"
+    fi
+
+    return 0
+}
+
 
 # Connect to wifi 
 WiFi(){
@@ -204,6 +273,9 @@ push_log() {
     log_status "Pushing log file to the drone"
     cp $LOG_FILE /data/setup.log
 }
+if ["STATUS" = true]; then
+    SystemStatus
+fi
 
 if [[ "$SSID_SET" = true && "$PASS_SET" = true ]]; then
     WiFi
