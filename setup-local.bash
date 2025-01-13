@@ -147,7 +147,7 @@ SystemStatus(){
 
     echo -n "PX4 Domain ID..."
     if grep -q "param set XRCE_DDS_DOM_ID 10" /usr/bin/voxl-px4-start; then
-        echo -e "${GREEN}PASS${NC}S"
+        echo -e "${GREEN}PASS${NC}"
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -155,7 +155,7 @@ SystemStatus(){
     # Params
     echo -n "PX4 Params..."
     if px4-param compare EKF2_EV_CTRL 0; then
-        echo -e "${GREEN}PASS${NC}S"
+        echo -e "${GREEN}PASS${NC}"
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -163,7 +163,7 @@ SystemStatus(){
     # Offboard
     echo -n "Offboard mode..."
     if grep -q '"offboard_mode":[[:space:]]*"off"' /etc/modalai/voxl-vision-hub.conf; then
-        echo -e "${GREEN}PASS${NC}S"
+        echo -e "${GREEN}PASS${NC}"
     else
         echo -e "${RED}FAIL${NC}"
     fi
