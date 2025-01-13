@@ -18,7 +18,7 @@ help() {
 }
 
 params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,status,pac:,help --name "$(basename "$0")" -- "$@")"
-echo "Debug: $params"
+#echo "Debug: $params"
 
 eval set -- "$params"
 unset params
@@ -112,12 +112,6 @@ while true; do
     esac
 done
 
-echo "SSID: ${SSID}"
-echo "PASS: ${PASS}"
-echo "OFFBOARD: ${OFFBOARD}"
-echo "ROS_NAMESPACE: ${ROS_NAMESPACE}"
-echo "DOCKER: ${DOCKER}"
-
 # System check
 SystemStatus(){
     log_status "Checking system status"
@@ -169,6 +163,14 @@ SystemStatus(){
         echo -e "${RED}FAIL${NC}"
     fi
 
+    # Cameras
+    echo -n "Disabled cameras..."
+    if systemctl is-active --quiet voxl-camera-server; then
+        echo -e "${RED}FAIL${NC}"
+    else
+        echo -e "${GREEN}PASS${NC}"
+    fi
+
     # PAC
     # Simple directory check for now
     echo -n "PAC..."
@@ -208,16 +210,18 @@ PAC(){
     mkdir -p ${PAC_WS}
     git clone https://github.com/pac-ws/pac_ws_setup.git ${PAC_WS}/pac_ws_setup
 
-    # Clone repositories (Use this to also update the repositories)
+    # Clone repositories (This will also update repositories)
     log_status "Cloning repositories"
     cd ${PAC_WS}/pac_ws_setup
     bash setup_pac_ws.bash -d ${PAC_WS}
 
-    #log_status "Creating container"
-    #bash pac_create_container.sh -d /data/pac_ws --ns ${ROS_NAMESPACE}
 
-    #log_status "Building packages"
-    #docker exec pac-m0054 bash -c "source /root/.bashrc && source /opt/ros/humble/setup.bash && source /opt/ros/extra/install/local_setup.bash && colcon build --packages-select coveragecontrol_sim async_pac_gnn_py cc_rviz px4_homify starling_offboard_cpp starling_demos_cpp"
+    log_status "Creating container"
+    bash pac_create_container.sh -d ${PAC_WS} --ns ${ROS_NAMESPACE} -n pac-$HOSTNAME --noble
+
+    log_status "Building packages"
+    docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/build.bash
+    docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/starling_build.bash
 
     return 0
 }
@@ -239,11 +243,6 @@ ROS(){
 Offboard(){
     log_status "Disabling Figure Eight mode"
     sed -i '/\"offboard_mode\":[[:space:]]*\"figure_eight\"/s/\"figure_eight\"/\"off\"/' /etc/modalai/voxl-vision-hub.conf
-    if [ $? -eq 0 ]; then
-        log_status "Successfully disabled Figure Eight mode"
-    else
-        log_status "Failed to disable Figure Eight mode"
-    fi
     return 0
 }
 
