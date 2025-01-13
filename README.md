@@ -1,6 +1,6 @@
 ## Clone to starling
 ```
-git clone https://github.com/pac_ws/starling_scripts.git /data/starling_scripts
+git clone https://github.com/pac-ws/starling_scripts.git /data/starling_scripts
 ```
 
 ## Install
