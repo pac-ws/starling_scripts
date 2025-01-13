@@ -141,7 +141,7 @@ SystemStatus(){
     # PX4
     echo -n "PX4 Namespace..."
     if grep -q "microdds_client start -t udp -h 127.0.0.1 -p 8888 -n '${ROS_NAMESPACE}'" /usr/bin/voxl-px4-start; then
-        echo -e "${GREEN}PASS{NC}"
+        echo -e "${GREEN}PASS${NC}"
     else
         echo -e "${RED}FAIL${NC}"
     fi
