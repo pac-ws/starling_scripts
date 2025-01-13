@@ -27,7 +27,7 @@ SSID_SET=false
 SSID=""
 PASS_SET=false
 PASS=""
-ROS_NAMESPACE=""
+#ROS_NAMESPACE=""
 DISABLE_CAMS=false
 OFFBOARD=false
 DOCKER=false
@@ -59,12 +59,12 @@ while true; do
             ;;
         --ros) 
             ROS=true
-            ROS_NAMESPACE="${2}"
-            if [[ -z "$ROS_NAMESPACE" ]]; then
+            NAMESPACE="${2}"
+            if [[ -z "$NAMESPACE" ]]; then
                 echo "Error: --ros requires a namespace."
                 exit 1
             fi
-            echo "Debug: ROS_NAMESPACE: ${ROS_NAMESPACE}"
+            echo "Debug: NAMESPACE: ${NAMESPACE}"
             shift 2
             ;;
         --offboard) 
@@ -115,6 +115,7 @@ done
 echo "SSID: ${SSID}"
 echo "PASS: ${PASS}"
 echo "OFFBOARD: ${OFFBOARD}"
+echo "ROS_NAMESPACE: ${ROS_NAMESPACE}"
 echo "DOCKER: ${DOCKER}"
 
 # System check
@@ -200,7 +201,7 @@ PAC(){
     source /home/root/.bashrc
 
     echo "PAC_WS: ${PAC_WS}"
-    echo "ROS_NAMESPACE: ${ROS_NAMESPACE}"
+    echo "ROS_NAMESPACE: ${NAMESPACE}"
 
     # Clone pac_ws_setup
     log_status "Cloning pac_ws_setup"
