@@ -217,7 +217,7 @@ PAC(){
 
 
     log_status "Creating container"
-    bash pac_create_container.sh -d ${PAC_WS} --ns ${ROS_NAMESPACE} -n pac-$HOSTNAME --noble --id 0
+    bash pac_create_container.sh -d ${PAC_WS} --ns ${ROS_NAMESPACE} -n pac-$HOSTNAME --jazzy --id 0
 
     log_status "Building packages"
     docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/build.bash
