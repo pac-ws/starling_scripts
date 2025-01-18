@@ -153,15 +153,12 @@ for ENTRY in "${REPOS[@]}"; do
   # Skip empty lines or lines starting with '#'
   [[ -z "$ENTRY" || "$ENTRY" == \#* ]] && continue
 
-  # Read the REPO_DIR from the entry
-  read -r REPO_DIR "$ENTRY"
-
   # Combine PAC_WS and RELATIVE_TARGET_DIR to get the absolute target directory
-  TARGET_DIR="${PAC_WS}/${REPO_DIR}"
+  TARGET_DIR="${PAC_WS}/${ENTRY}"
 
-  SOURCE_DIR="${GCS_PAC_WS}/${REPO_DIR}"
+  SOURCE_DIR="${GCS_PAC_WS}/${ENTRY}"
 
-  info_message "Processing repository '$REPO_DIR' at '$TARGET_DIR'..."
+  info_message "Processing repository '$ENTRY' at '$TARGET_DIR'..."
 
   if [[ -d "$TARGET_DIR/.git" ]]; then
     info_message "Repository already exists. Checking for updates..."
@@ -185,7 +182,7 @@ for ENTRY in "${REPOS[@]}"; do
       if git -C "$SOURCE_DIR" "ssh://$GCS_USER@$GCS_IP:$TARGET_DIR/.git"; then
         info_message "Successfully updated repository at '$TARGET_DIR'."
         # If the directory was pac_ws_setup, print warning to re-run setup_pac_ws.bash
-        if [[ "$REPO_DIR" == "pac_ws_setup" ]]; then
+        if [[ "$ENTRY" == "pac_ws_setup" ]]; then
           echo -e "${RED}Please re-run the setup_pac_ws.bash script to ensure the changes are applied.${NC}"
         fi
       else
