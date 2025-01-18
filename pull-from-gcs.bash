@@ -15,6 +15,8 @@ usage() {
   exit 1
 }
 
+DEV_MODE=0
+
 params="$(getopt -o 'h' -l user:,help --name "$(basename "$0")" -- "$@")"
 eval set -- "$params"
 unset params
