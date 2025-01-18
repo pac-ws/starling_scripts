@@ -220,7 +220,7 @@ PAC(){
     bash pac_create_container.sh -d ${PAC_WS} --ns ${ROS_NAMESPACE} -n pac-$HOSTNAME --jazzy --id 0
 
     log_status "Building packages"
-    docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/build.bash
+    # docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/build.bash
     docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/starling_build.bash
 
     return 0
