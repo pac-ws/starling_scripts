@@ -172,14 +172,14 @@ for ENTRY in "${REPOS[@]}"; do
     git fetch "ssh://$GCS_USER@$GCS_IP:$SOURCE_DIR/.git" || error_exit "Failed to fetch updates from '$SOURCE_DIR'."
 
     LOCAL=$(git rev-parse @)
-    REMOTE=$(git rev-parse @{u} || echo "no_upstream")
+    REMOTE=$(git rev-parse FETCH_HEAD || echo "no_upstream")
     BASE=$(git merge-base @ @{u} 2>/dev/null || echo "no_merge_base")
 
     if [ "$LOCAL" = "$REMOTE" ]; then
       info_message "Repository '$TARGET_DIR' is up-to-date."
     elif [ "$LOCAL" = "$BASE" ]; then
       info_message "Updating repository '$TARGET_DIR'..."
-      if git -C "$TARGET_DIR" "ssh://$GCS_USER@$GCS_IP:$SOURCE_DIR/.git"; then
+      if git -C "$TARGET_DIR" pull "ssh://"$GCS_USER@$GCS_IP:$SOURCE_DIR/.git"; then
         info_message "Successfully updated repository at '$TARGET_DIR'."
         # If the directory was pac_ws_setup, print warning to re-run setup_pac_ws.bash
         if [[ "$ENTRY" == "pac_ws_setup" ]]; then
