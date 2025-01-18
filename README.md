@@ -20,5 +20,7 @@ export ROS_NAMESPACE=<robot_number>
 ```
 bash /data/starling_scripts/setup-local.bash --ros ${ROS_NAMESPACE} --params --docker --offboard --disable-cams --pac ${ROS_NAMESPACE}
 ```
-
-
+To update only pac:
+```
+bash /data/starling_scripts/setup-local.bash --pac ${ROS_NAMESPACE}
+```
