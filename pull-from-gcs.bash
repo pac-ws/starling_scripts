@@ -10,24 +10,59 @@ GREEN='\033[0;32m'  # Green
 YELLOW='\033[0;33m' # Yellow
 NC='\033[0m'        # No Color
 
+# ----------------------------
+# Function Definitions
+# ----------------------------
+
+# Function to display usage information
 usage() {
   echo "Usage: $0 --user <user> --dev [--help]"
   exit 1
 }
 
+# Function to check if a command exists
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Function to handle errors with colored output
+error_exit() {
+  echo -e "${RED}Error: $1${NC}" >&2
+  exit 1
+}
+
+# Function to display informational messages
+info_message() {
+  echo -e "${GREEN}$1${NC}"
+}
+
+# Function to display warnings
+warning_message() {
+  echo -e "${YELLOW}Warning: $1${NC}"
+}
+
 DEV_MODE=0
 
-params="$(getopt -o 'h' -l user:,help --name "$(basename "$0")" -- "$@")"
+params="$(getopt -o 'd:h' -l user:,dir:,dev,help --name "$(basename "$0")" -- "$@")"
 eval set -- "$params"
 unset params
 
 while true; do
-    echo "Debug: $1"
     case ${1} in
         --user) 
             GCS_USER=$2
             if [ -z "$GCS_USER" ]; then
                 echo -e "${RED}Error: --user requires an argument${NC}"
+                usage
+                exit 1
+            fi
+            shift 2
+            ;;
+
+        -d|--dir) 
+            PAC_WS=$2
+            if [ -z "$PAC_WS" ]; then
+                echo -e "${RED}Error: [-d | --dir] requires an argument${NC}"
                 usage
                 exit 1
             fi
@@ -68,6 +103,10 @@ case $GCS_USER in
         exit 1
         ;;
 esac
+
+echo "GCS_USER: $GCS_USER"
+echo "GCS_IP: $GCS_IP"
+echo "GCS_PAC_WS: $GCS_PAC_WS"
         
 # Check if PAC_WS is set
 if [ -z "${PAC_WS}" ]; then
