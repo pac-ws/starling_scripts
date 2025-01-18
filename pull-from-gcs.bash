@@ -94,8 +94,8 @@ case $GCS_USER in
         GCS_PAC_WS="/home/fred/Penn/pac_ws"
         ;;
     "saurav")
-        GCS_IP="192.168.0.205"
-        GCS_PAC_WS="/home/fred/Penn/pac_ws"
+        GCS_IP="192.168.0.158"
+        GCS_PAC_WS="/home/saurav/pac_ws"
         ;;
     *)
         echo -e "${RED}Error: Unknown user $GCS_USER${NC}"
