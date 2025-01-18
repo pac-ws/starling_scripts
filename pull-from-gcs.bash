@@ -169,7 +169,7 @@ for ENTRY in "${REPOS[@]}"; do
       warning_message "There are local changes in '$TARGET_DIR'."
     fi
 
-    #git fetch
+    git fetch "ssh://$GCS_USER@$GCS_IP:$TARGET_DIR" || error_exit "Failed to fetch updates from '$TARGET_DIR'."
 
     LOCAL=$(git rev-parse @)
     REMOTE=$(git rev-parse @{u} || echo "no_upstream")
