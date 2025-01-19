@@ -218,7 +218,7 @@ for ENTRY in "${REPOS[@]}"; do
     if [ $CLONE_ALL -eq 0 ]; then
       read -p "Do you want to clone all missing repositories? This will set the remote origin to the GCS [y/n]: " -n 1 -r
       echo
-      if [[ $REPLY =~ ^[Yy]$ ]]; the
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
         CLONE_ALL=1
       fi
     fi
