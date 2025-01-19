@@ -205,6 +205,7 @@ for ENTRY in "${REPOS[@]}"; do
       info_message "Successfully cloned '$ENTRY' into '$TARGET_DIR'."
     else
       error_exit "Failed to clone repository '$ENTRY' into '$TARGET_DIR'."
+    fi
   fi
 
   echo "----------------------------------------"
