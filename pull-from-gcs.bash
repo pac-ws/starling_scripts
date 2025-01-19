@@ -41,6 +41,23 @@ warning_message() {
   echo -e "${YELLOW}Warning: $1${NC}"
 }
 
+clone() {
+    # 1 - Target directory
+    # 2 - Source directory
+    # 3 - User
+    # 4 - IP
+    # 5 - Entry
+    # Create the target directory's parent directories if they don't exist
+    mkdir -p "$(dirname "$1")"
+
+    # Clone the repository
+    if git clone "ssh://$1@$4:$2/.git" "$1"; then
+      info_message "Successfully cloned '$5' into '$1'."
+    else
+      error_exit "Failed to clone repository '$5' into '$1'."
+    fi
+}
+
 DEV_MODE=0
 
 params="$(getopt -o 'd:h' -l user:,dir:,dev,help --name "$(basename "$0")" -- "$@")"
@@ -149,6 +166,8 @@ if [ $DEV_MODE -eq 1 ]; then
   )
 fi
 
+CLONE_ALL=0
+
 for ENTRY in "${REPOS[@]}"; do
   # Skip empty lines or lines starting with '#'
   [[ -z "$ENTRY" || "$ENTRY" == \#* ]] && continue
@@ -195,16 +214,26 @@ for ENTRY in "${REPOS[@]}"; do
     fi
 
   else
-    info_message "Cloning repository..."
-    #
-    # Create the target directory's parent directories if they don't exist
-    mkdir -p "$(dirname "$TARGET_DIR")"
+    warning_message "Repository does not exist. Cloning repository '$ENTRY' into '$TARGET_DIR'."
+    if [ $CLONE_ALL -eq 0 ]; then
+      read -p "Do you want to clone all missing repositories? This will set the remote origin to the GCS [y/n]: " -n 1 -r
+      echo
+      if [[ $REPLY =~ ^[Yy]$ ]]; the
+        CLONE_ALL=1
+      fi
+    fi
 
-    # Clone the repository
-    if git clone "ssh://$GCS_USER@$GCS_IP:$SOURCE_DIR/.git" "$TARGET_DIR"; then
-      info_message "Successfully cloned '$ENTRY' into '$TARGET_DIR'."
+    if [ $CLONE_ALL -eq 0 ]; then
+        read -p "Proceed? This will set the remote origin of '$ENTRY' to the GCS. [y/n]: " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+          echo "Skipping repository '$ENTRY'."
+          continue
+        else
+            clone "$TARGET_DIR" "$SOURCE_DIR" "$GCS_USER" "$GCS_IP" "$ENTRY"
+        fi
     else
-      error_exit "Failed to clone repository '$ENTRY' into '$TARGET_DIR'."
+        clone "$TARGET_DIR" "$SOURCE_DIR" "$GCS_USER" "$GCS_IP" "$ENTRY"
     fi
   fi
 
