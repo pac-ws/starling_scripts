@@ -48,6 +48,11 @@ clone() {
     # 4 - IP
     # 5 - Entry
     # Create the target directory's parent directories if they don't exist
+    echo $1
+    echo $2
+    echo $3
+    echo $4
+    echo $5
     mkdir -p "$(dirname "$1")"
 
     # Clone the repository
@@ -220,10 +225,12 @@ for ENTRY in "${REPOS[@]}"; do
       echo
       if [[ $REPLY =~ ^[Yy]$ ]]; then
         CLONE_ALL=1
+      else
+        CLONE_ALL=-1
       fi
     fi
 
-    if [ $CLONE_ALL -eq 0 ]; then
+    if [ $CLONE_ALL -eq -1 ]; then
         read -p "Proceed? This will set the remote origin of '$ENTRY' to the GCS. [y/n]: " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -232,7 +239,7 @@ for ENTRY in "${REPOS[@]}"; do
         else
             clone "$TARGET_DIR" "$SOURCE_DIR" "$GCS_USER" "$GCS_IP" "$ENTRY"
         fi
-    else
+    elif [ $CLONE_ALL -eq 1 ]; then
         clone "$TARGET_DIR" "$SOURCE_DIR" "$GCS_USER" "$GCS_IP" "$ENTRY"
     fi
   fi
