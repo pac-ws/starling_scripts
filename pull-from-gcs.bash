@@ -195,7 +195,16 @@ for ENTRY in "${REPOS[@]}"; do
     fi
 
   else
-    info_message "Repository does not exist."
+    info_message "Cloning repository..."
+    #
+    # Create the target directory's parent directories if they don't exist
+    mkdir -p "$(dirname "$TARGET_DIR")"
+
+    # Clone the repository
+    if git clone "ssh://$GCS_USER@$GCS_IP:$SOURCE_DIR/.git" "$TARGET_DIR"; then
+      info_message "Successfully cloned '$ENTRY' into '$TARGET_DIR'."
+    else
+      error_exit "Failed to clone repository '$ENTRY' into '$TARGET_DIR'."
   fi
 
   echo "----------------------------------------"
