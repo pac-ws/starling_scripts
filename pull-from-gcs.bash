@@ -48,15 +48,10 @@ clone() {
     # 4 - IP
     # 5 - Entry
     # Create the target directory's parent directories if they don't exist
-    echo $1
-    echo $2
-    echo $3
-    echo $4
-    echo $5
     mkdir -p "$(dirname "$1")"
 
     # Clone the repository
-    if git clone "ssh://$1@$4:$2/.git" "$1"; then
+    if git clone "ssh://$3@$4:$2/.git" "$1"; then
       info_message "Successfully cloned '$5' into '$1'."
     else
       error_exit "Failed to clone repository '$5' into '$1'."
