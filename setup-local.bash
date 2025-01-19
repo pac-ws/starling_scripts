@@ -214,10 +214,18 @@ PAC(){
     log_status "Cloning repositories"
     cd ${PAC_WS}/pac_ws_setup
     bash setup_pac_ws.bash -d ${PAC_WS}
-
+    if [ $? -ne 0 ]; then
+        log_status "Failed to clone repositories"
+        return 1
+    fi
 
     log_status "Creating container"
     bash pac_create_container.sh -d ${PAC_WS} --ns ${ROS_NAMESPACE} -n pac-$HOSTNAME --jazzy --id 0
+    # Check if previous command was successful
+    if [ $? -ne 0 ]; then
+        log_status "Failed to create container"
+        return 1
+    fi
 
     log_status "Opening container"
     docker logs -f pac-$HOSTNAME
