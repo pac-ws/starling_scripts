@@ -18,7 +18,6 @@ help() {
 }
 
 params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,status,pac:,help --name "$(basename "$0")" -- "$@")"
-#echo "Debug: $params"
 
 eval set -- "$params"
 unset params
@@ -37,7 +36,6 @@ PAC=false
 NAMESPACE=""
 
 while true; do
-    echo "Debug: $1"
     case ${1} in
         --ssid) 
             SSID_SET=true
@@ -120,6 +118,7 @@ SystemStatus(){
     echo -n "Docker..."
     if command -v docker &> /dev/null; then
         echo -e "${GREEN}PASS${NC}"
+        DOCKER_STATUS=true
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -128,6 +127,7 @@ SystemStatus(){
     echo -n "ROS2 Foxy..."
     if command -v ros2 &> /dev/null; then
         echo -e "${GREEN}PASS${NC}"
+        ROS_STATUS=true
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -151,6 +151,7 @@ SystemStatus(){
     echo -n "PX4 Params..."
     if px4-param compare EKF2_EV_CTRL 0; then
         echo -e "${GREEN}PASS${NC}"
+        PARAMS_STATUS=true
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -159,6 +160,7 @@ SystemStatus(){
     echo -n "Offboard mode..."
     if grep -q '"offboard_mode":[[:space:]]*"off"' /etc/modalai/voxl-vision-hub.conf; then
         echo -e "${GREEN}PASS${NC}"
+        OFFBOARD_STATUS=true
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -169,6 +171,7 @@ SystemStatus(){
         echo -e "${RED}FAIL${NC}"
     else
         echo -e "${GREEN}PASS${NC}"
+        DISABLE_CAMS_STATUS=true
     fi
 
     # PAC
@@ -176,6 +179,7 @@ SystemStatus(){
     echo -n "PAC..."
     if [ -d /data/pac_ws ]; then
         echo -e "${GREEN}PASS${NC}"
+        PAC_STATUS=true
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -287,38 +291,73 @@ push_log() {
     log_status "Pushing log file to the drone"
     cp $LOG_FILE /data/setup.log
 }
-if [ "$STATUS" = true ]; then
-    SystemStatus
-fi
+
+# Always check system status
+ROS_STATUS=false
+OFFBOARD_STATUS=false
+DOCKER_STATUS=false
+DISABLE_CAMS_STATUS=false
+PARAMS_STATUS=false
+PAC_STATUS=false
+
+SystemStatus
 
 if [[ "$SSID_SET" = true && "$PASS_SET" = true ]]; then
     WiFi
 fi
 
 if [ "$ROS" = true ]; then
-    ROS 
+    if [ "$ROS_STATUS" = false ]; then
+        ROS
+    else
+        echo -e "${YELLOW}ROS2 already installed. Skipping...${NC}"
+    fi
 fi
 
 if [ "$OFFBOARD" = true ]; then
-    Offboard
+    if [ "$OFFBOARD_STATUS" = false ]; then
+        Offboard
+    else
+        echo -e "${YELLOW}Offboard configuration already complete. Skipping...${NC}"
+    fi
 fi
 
 if [ "$DOCKER" = true ]; then
-    Docker
+    if [ "$DOCKER_STATUS" = false ]; then
+        Docker
+    else
+        echo -e "${YELLOW}Docker already installed. Skipping...${NC}"
+    fi
 fi
 
 if [ "$DISABLE_CAMS" = true ]; then
-    DisableCams
+    if [ "$DISABLE_CAMS" = false ]; then
+        DisableCams
+    else
+        echo -e "${YELLOW}Cameras already disabled. Skipping...${NC}"
+    fi
 fi
 
 if [ "$PARAMS" = true ]; then
-    Params
+    if [ "$PARAMS_STATUS" = false ]; then
+        Params
+    else
+        echo -e "${YELLOW}Outdoor parameters already set. Skipping...${NC}"
+    fi
 fi
 
 if [ "$PAC" = true ]; then
-    PAC
+    if [ "$PAC_STATUS" = false ]; then
+        PAC
+    else
+        echo -e "${YELLOW}pac_ws is already setup.${NC}"
+        read -p "Would you like to reinstall pac_ws? [y/N]: " REINSTALL
+        if [[ $REINSTALL =~ ^[Yy]$ ]]; then
+            rm -r /data/pac_ws
+            PAC
+        fi
+    fi
 fi
-
 
 # Store log file on drone with date
 push_log
