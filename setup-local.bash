@@ -231,10 +231,10 @@ PAC(){
         return 1
     fi
 
+    docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/starling_build.bash
     log_status "Opening container"
     docker logs -f pac-$HOSTNAME
     # docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/build.bash
-    # docker exec -it pac-$HOSTNAME bash -ci pac_ws_setup/starling_build.bash
 
     return 0
 }
