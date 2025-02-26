@@ -17,7 +17,7 @@ help() {
     exit 0
 }
 
-params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,status,pac:,help --name "$(basename "$0")" -- "$@")"
+params="$(getopt -o 'h' -l ssid:,pass:,ros:,offboard,docker,disable-cams,params,status,pac:,geofence,help --name "$(basename "$0")" -- "$@")"
 
 eval set -- "$params"
 unset params
@@ -34,6 +34,7 @@ PARAMS=false
 STATUS=false
 PAC=false
 NAMESPACE=""
+GEOFENCE=false
 
 while true; do
     case ${1} in
@@ -94,6 +95,10 @@ while true; do
                 exit 1
             fi
             shift 2
+            ;;
+        --geofence)
+            GEOFENCE=true
+            shift
             ;;
         -h|--help) 
             help 
@@ -180,6 +185,15 @@ SystemStatus(){
     if [ -d /data/pac_ws ]; then
         echo -e "${GREEN}PASS${NC}"
         PAC_STATUS=true
+    else
+        echo -e "${RED}FAIL${NC}"
+    fi
+    
+    # Geofence
+    echo -n "Geofence Params..."
+    if px4-param compare GF_ACTION 2 && px4-param compare GF_MAX_VER_DIST 30; then
+        echo -e "${GREEN}PASS${NC}"
+        GEOFENCE_STATUS=true
     else
         echo -e "${RED}FAIL${NC}"
     fi
@@ -287,6 +301,14 @@ Params(){
     return 0
 }
 
+Geofence(){
+    # Hold on fence breach
+    px4-param set GF_ACTION 2
+
+    # 30m Altitude (from home)
+    px4-param set GF_MAX_VER_DIST 30
+}
+
 push_log() {
     log_status "Pushing log file to the drone"
     cp $LOG_FILE /data/setup.log
@@ -299,6 +321,7 @@ DOCKER_STATUS=false
 DISABLE_CAMS_STATUS=false
 PARAMS_STATUS=false
 PAC_STATUS=false
+GEOFENCE_STATUS=false
 
 SystemStatus
 
@@ -356,6 +379,14 @@ if [ "$PAC" = true ]; then
             rm -r /data/pac_ws
             PAC
         fi
+    fi
+fi
+
+if [ "$GEOFENCE" = true ]; then
+    if [ "$GEOFENCE_STATUS" = false ]; then
+        Geofence
+    else
+        echo -e "${YELLOW}Geofence parameters already set. Skipping...${NC}"
     fi
 fi
 
