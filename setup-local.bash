@@ -354,7 +354,7 @@ if [ "$DOCKER" = true ]; then
 fi
 
 if [ "$DISABLE_CAMS" = true ]; then
-    if [ "$DISABLE_CAMS" = false ]; then
+    if [ "$DISABLE_CAMS_STATUS" = false ]; then
         DisableCams
     else
         echo -e "${YELLOW}Cameras already disabled. Skipping...${NC}"
