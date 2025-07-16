@@ -16,6 +16,9 @@ RESET = "\033[0m"
 
 typestore = get_typestore(Stores.ROS2_JAZZY)
 
+def hline():
+    print("--------------------------------------------------------------------------------")
+
 def pc2_to_native(msg: object) -> object:
     dtype = np.dtype([ 
             ("x", np.float32),
@@ -103,8 +106,10 @@ def process_bag(filepath: str):
         typestore.register(typs)
 
         print(GREEN + "Found the following topics:" + RESET)
+        hline()
         for connection in reader.connections:
             print(connection.topic, connection.msgtype)
+        hline()
 
         table = {}
         cnt = 1
@@ -124,10 +129,19 @@ def process_bag(filepath: str):
             else:
                 table[namespace][topic_name].update(entry)
         print(GREEN + "\nDone!" + RESET)
-        print(BLUE + f"Saving to {save_path}" + RESET, end="")
+        print(BLUE + f"Saving to {save_path}..." + RESET, end="")
         with open(save_path, "wb") as f:
             pickle.dump(table, f, protocol=pickle.HIGHEST_PROTOCOL)
-        print(GREEN + "\nDone! Exiting..." + RESET)
+        print(GREEN + "Done! Exiting..." + RESET)
+
+def test_loading(filepath, filename):
+    if filepath[-1] == "/": # Account for trailing slash
+        filepath = filepath[:-1]
+    full_path = filepath + "/" + filename
+    with open(full_path, "rb") as f:
+        loaded_data = pickle.load(f)
+    print(f"Loaded data keys {loaded_data.keys()}")
+    pdb.set_trace()
 
 if __name__ ==  "__main__":
     parser = argparse.ArgumentParser(
@@ -137,3 +151,10 @@ if __name__ ==  "__main__":
     parser.add_argument("filepath")
     args = parser.parse_args()
     process_bag(args.filepath)
+
+    #filepath = args.filepath
+    #if filepath[-1] == "/": # Account for trailing slash
+    #    filepath = filepath[:-1]
+    #split = filepath.split("/")
+    #filename = split[-1] + ".pkl"
+    #test_loading(filepath, filename)
