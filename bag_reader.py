@@ -7,12 +7,8 @@ import numpy as np
 import pdb
 import sys
 import pickle
+from colors import *
 
-RED = "\033[31m"
-GREEN = "\033[32m"
-YELLOW = "\033[33m"
-BLUE = "\033[34m"
-RESET = "\033[0m"
 
 typestore = get_typestore(Stores.ROS2_JAZZY)
 
