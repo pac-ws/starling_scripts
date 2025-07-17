@@ -1,6 +1,8 @@
 import bag_reader
+import bag_plotter
 import argparse
 import os
+import pickle
 from colors import *
 
 import pdb
@@ -21,13 +23,18 @@ def list_directories(dir: str,
         return filtered_bags
     elif single:
         filtered_bags = [single]
-        if not os.path.isdir(single):
+        if not os.path.isdir(dir + "/" + single):
             print(RED + "Error: The specified path is not a directory." + RESET)
         return filtered_bags
     else:
         print(RED + "Error: missing at least one input (all, match, single) when listing directories.\
                 Exiting..." + RESET)
         exit(0)
+
+def load_bag(filepath: str):
+    with open(filepath, "rb") as f:
+        bag_dict = pickle.load(f)
+    return bag_dict
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="bag_plotter.py",
@@ -36,18 +43,19 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Loading
-    parser_processor = subparsers.add_parser("process", help="Process bag files, generating a data file")
-    parser_processor.add_argument("-d",
+    parser_extractor = subparsers.add_parser("extract", help="Extract data from bag files, generating a friendlier data file")
+    parser_extractor.add_argument("-d",
                                "--dir",
                                type=str,
                                default="/workspace/bags",
                                help="Directory containing bag files. default: /workspace/bags"
                                )
-    parser_xor = parser_processor.add_mutually_exclusive_group(required=True)
-    parser_xor.add_argument("-a", "--all", action="store_true", help="Process all bag files in the given directory")
-    parser_xor.add_argument("-m", "--match", type=str, help="Process all bag files that contain a given substring")
-    parser_xor.add_argument("-s", "--single", type=str, help="Path to a specific bag file")
-    args = parser.parse_args()
+    parser_ext_xor = parser_extractor.add_mutually_exclusive_group(required=True)
+    parser_ext_xor.add_argument("-a", "--all", action="store_true", help="Process all bag files\
+            in the given directory")
+    parser_ext_xor.add_argument("-m", "--match", type=str, help="Process all bag files that\
+            contain a given substring")
+    parser_ext_xor.add_argument("-s", "--single", type=str, help="Path to a specific bag file")
 
     # Plotting
     parser_plotter = subparsers.add_parser("plot", help="Plot bag files [Requires processing first!]")
@@ -57,17 +65,26 @@ if __name__ == "__main__":
                                default="/workspace/bags",
                                help="Directory containing bag files. default: /workspace/bags"
                                )
-    parser_xor = parser_processor.add_mutually_exclusive_group(required=True)
-    parser_xor.add_argument("-a", "--all", action="store_true", help="Process all bag files in the given directory")
-    parser_xor.add_argument("-m", "--match", type=str, help="Process all bag files that contain a given substring")
-    parser_xor.add_argument("-s", "--single", type=str, help="Path to a specific bag file")
+    parser_plotter.add_argument("-o",
+                                "--output",
+                                type=str,
+                                default="/workspace/figures",
+                                help="Output directory for generated figures"
+                                )
+    parser_plot_xor = parser_plotter.add_mutually_exclusive_group(required=True)
+    parser_plot_xor.add_argument("-a", "--all", action="store_true", help="Plot bags in the given directory")
+    parser_plot_xor.add_argument("-m", "--match", type=str, help="Plot a subsection of bags in the directory")
+    parser_plot_xor.add_argument("-s", "--single", type=str, help="Plot a specific bag file")
 
     #Execution
+    args = parser.parse_args()
     bags = list_directories(args.dir, args.all, args.match, args.single)
     for b in bags:
-        if args.process:
+        if args.command == "extract":
             filepath = args.dir + "/" + b
-            bag_reader.process_bag(filepath)
-        elif args.plot:
+            bag_reader.extract_bag(filepath)
+        elif args.command == "plot":
             filepath = args.dir + "/" + b + "/" + b + ".pkl" # pkl file shares name of bag dir
+            bag_dict = load_bag(filepath)
+            bag_plotter.plot_bag(bag_dict, args.output)
             

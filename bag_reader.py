@@ -86,7 +86,7 @@ def get_mission_ctrl(msg):
             msg.pac_lpac_l2
             ], dtype = bool)
 
-def process_bag(filepath: str):
+def extract_bag(filepath: str):
     print(BLUE + f"Reading from {filepath}" + RESET)
     if filepath[-1] == "/": # Account for trailing slash
         filepath = filepath[:-1]
@@ -128,16 +128,7 @@ def process_bag(filepath: str):
         print(BLUE + f"Saving to {save_path}..." + RESET, end="")
         with open(save_path, "wb") as f:
             pickle.dump(table, f, protocol=pickle.HIGHEST_PROTOCOL)
-        print(GREEN + "Done! Exiting..." + RESET)
-
-def test_loading(filepath, filename):
-    if filepath[-1] == "/": # Account for trailing slash
-        filepath = filepath[:-1]
-    full_path = filepath + "/" + filename
-    with open(full_path, "rb") as f:
-        loaded_data = pickle.load(f)
-    print(f"Loaded data keys {loaded_data.keys()}")
-    pdb.set_trace()
+        print(GREEN + "Done!" + RESET)
 
 if __name__ ==  "__main__":
     parser = argparse.ArgumentParser(
@@ -146,7 +137,7 @@ if __name__ ==  "__main__":
             )
     parser.add_argument("filepath")
     args = parser.parse_args()
-    process_bag(args.filepath)
+    extract_bag(args.filepath)
 
     #filepath = args.filepath
     #if filepath[-1] == "/": # Account for trailing slash
