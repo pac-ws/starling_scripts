@@ -40,7 +40,7 @@ def get_robot_poses(bag_dict: dict):
     all_pose_data = bag_dict["sim"]["all_robot_positions"]
     t_pos_arr = np.array(list(all_pose_data.keys()))
     t_pos_arr = np.sort(t_pos_arr)
-    data_vec = [coverage_control.PointVector(all_pose_data[t]) for t in t_pos_arr]
+    data_vec = [coverage_control.PointVector(np.clip(all_pose_data[t], 1, 512)) for t in t_pos_arr] # TODO BAD!
     return data_vec
 
 def create_cc_env(cc_parameters: coverage_control.Parameters,
@@ -63,7 +63,8 @@ def create_cc_env(cc_parameters: coverage_control.Parameters,
 def plot_bag(bag_dict: dict,
              params_file: str,
              idf_file: str,
-             save_dir: str
+             save_dir: str,
+             bag_name: str,
              ):
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -78,15 +79,20 @@ def plot_bag(bag_dict: dict,
         exit(0)
     total_steps = len(robot_poses)
     normalized_cost_arr = np.empty(total_steps, dtype=np.float64)
+    print(BLUE + f"Evaluating coverage cost for {bag_name}..." + RESET, end="")
     initial_cost = cc_env.GetObjectiveValue()
     normalized_cost_arr[0] = 1.
     for i in range(1, total_steps):
         cc_env.SetGlobalRobotPositions(robot_poses[i])
         normalized_cost = cc_env.GetObjectiveValue() / initial_cost
         normalized_cost_arr[i] = normalized_cost
+    print(GREEN + "Done!" + RESET)
    
+    save_fn = save_dir + "/" + bag_name + ".png"
+    print(BLUE + f"Plotting and saving to {save_fn}..." + RESET, end="")
     plt.plot(normalized_cost_arr)
     plt.xlabel('Step')
     plt.ylabel('Normalized Coverage Cost')
     plt.grid(True)
-    plt.show()
+    plt.savefig(save_fn)
+    print(GREEN + "Done!" + RESET)

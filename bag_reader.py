@@ -132,8 +132,6 @@ def extract_bag(filepath: str):
                 table[namespace][topic_name] = entry
             else:
                 table[namespace][topic_name].update(entry)
-            if cnt > 3000:
-                break
         print(GREEN + "\nDone!" + RESET)
         print(BLUE + f"Saving to {save_path}..." + RESET, end="")
         with open(save_path, "wb") as f:
