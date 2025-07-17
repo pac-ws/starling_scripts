@@ -2,6 +2,7 @@ from warnings import warn
 from rosbags.rosbag2 import Reader 
 from rosbags.typesys import Stores, get_typestore, get_types_from_msg
 from sensor_msgs_py import point_cloud2
+import coverage_control
 import argparse
 import numpy as np
 import pdb
@@ -29,9 +30,9 @@ def pc2_to_native(msg: object) -> object:
 
 def extract_topic(
         connection,
+        timestamp,
         rawdata
     ) -> tuple[str, str, dict] | None:
-
     split = connection.topic.split("/")
     namespace = split[1]
     topic_name = split[-1]
@@ -47,13 +48,15 @@ def extract_topic(
               data = get_mission_ctrl_legacy(msg)
         else:
               data = get_mission_ctrl(msg)
+    elif connection.msgtype == "async_pac_gnn_interfaces/msg/RobotPositions":
+        data = get_all_robot_positions(msg)
     else:
         return None
-    if "header" in msg.__dataclass_fields__:
+    if "header" in msg.__dataclass_fields__: # use the recorded time, if available
         t = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
         entry = {t: data}
     else:
-        entry = {0: data}
+        entry = {timestamp: data} 
     return namespace, topic_name, entry
 
 def get_position(msg):
@@ -85,6 +88,11 @@ def get_mission_ctrl(msg):
             msg.pac_lpac_l1,
             msg.pac_lpac_l2
             ], dtype = bool)
+def get_all_robot_positions(msg) -> coverage_control.PointVector:
+    positions = []
+    for i in range(0, len(msg.positions), 2):
+        positions.append([msg.positions[i], msg.positions[i + 1]])
+    return np.array((positions))
 
 def extract_bag(filepath: str):
     print(BLUE + f"Reading from {filepath}" + RESET)
@@ -111,7 +119,7 @@ def extract_bag(filepath: str):
         cnt = 1
         num_msgs = reader.message_count
         for connection, timestamp, rawdata in reader.messages():
-            result = extract_topic(connection, rawdata)
+            result = extract_topic(connection, timestamp, rawdata)
             sys.stdout.write(f"Processed {cnt}/{num_msgs} messages in the playback.\r")
             sys.stdout.flush()
             cnt+=1
@@ -124,6 +132,8 @@ def extract_bag(filepath: str):
                 table[namespace][topic_name] = entry
             else:
                 table[namespace][topic_name].update(entry)
+            if cnt > 3000:
+                break
         print(GREEN + "\nDone!" + RESET)
         print(BLUE + f"Saving to {save_path}..." + RESET, end="")
         with open(save_path, "wb") as f:

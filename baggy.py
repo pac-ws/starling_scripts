@@ -57,6 +57,26 @@ if __name__ == "__main__":
             contain a given substring")
     parser_ext_xor.add_argument("-s", "--single", type=str, help="Path to a specific bag file")
 
+    # Calculate Cost
+    parser_cost = subparsers.add_parser("cost", help="Calculate the raw coverage cost of the bag file(s)")
+    parser_cost.add_argument("-d",
+                             "--dir",
+                             type=str,
+                             default="/workspace/bags",
+                             help="Directory containing bag files. default: /workspace/bags"
+                             )
+    parser_cost.add_argument("-c",
+                             "--config",
+                             type=str,
+                             default="/workspaces/configs/penn_envs",
+                             help="Directory containing the IDF enviornment files.\
+                                     default: /workspace/configs/penn_envs"
+                             )
+    parser_cost_xor = parser_cost.add_mutually_exclusive_group(required=True)
+    parser_cost_xor.add_argument("-a", "--all", action="store_true", help="Plot bags in the given directory")
+    parser_cost_xor.add_argument("-m", "--match", type=str, help="Plot a subsection of bags in the directory")
+    parser_cost_xor.add_argument("-s", "--single", type=str, help="Plot a specific bag file")
+
     # Plotting
     parser_plotter = subparsers.add_parser("plot", help="Plot bag files [Requires processing first!]")
     parser_plotter.add_argument("-d",
@@ -69,7 +89,21 @@ if __name__ == "__main__":
                                 "--output",
                                 type=str,
                                 default="/workspace/figures",
-                                help="Output directory for generated figures"
+                                help="Output directory for generated figures. default: /workspace/figures"
+                                )
+    parser_plotter.add_argument("-p",
+                                "--params",
+                                type=str,
+                                default="/workspace/pt/models_256/coverage_control_params_512.toml",
+                                help="Coverage control parameters file.\
+                                        default: /workspace/pt/models_256/coverage_control_params_512.toml"
+                                )
+    parser_plotter.add_argument("-i",
+                                "--idf",
+                                type=str,
+                                default="/workspace/configs/penn_envs/10r_2.env",
+                                help="Importance density function file.\
+                                        default: /workspace/configs/penn_envs/10r_3.env"
                                 )
     parser_plot_xor = parser_plotter.add_mutually_exclusive_group(required=True)
     parser_plot_xor.add_argument("-a", "--all", action="store_true", help="Plot bags in the given directory")
@@ -86,5 +120,5 @@ if __name__ == "__main__":
         elif args.command == "plot":
             filepath = args.dir + "/" + b + "/" + b + ".pkl" # pkl file shares name of bag dir
             bag_dict = load_bag(filepath)
-            bag_plotter.plot_bag(bag_dict, args.output)
+            bag_plotter.plot_bag(bag_dict, args.params, args.idf, args.output)
             
