@@ -1,9 +1,9 @@
-import pdb
 import os
 import re
 import numpy as np
 import coverage_control
 from numpy.typing import NDArray
+from scipy import ndimage
 import matplotlib.pyplot as plt
 import seaborn as sns
 import seaborn.objects as so
@@ -36,7 +36,7 @@ def seaborn_colors(colors : list[str]) -> list[[float]]:
         m = re.match(r'rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d\.]+)\)', color)
         if not m:
             print("invalid rgba string")
-            exit(0)
+            exit(1)
         r, g, b, a = m.groups()
         r = int(r) / 255
         g = int(g) / 255
@@ -101,13 +101,39 @@ def process_bag(bag_dict: dict):
             robots.append(Robot(ns=k, data_pos=data_arr))
     return robots
 
-
-def get_robot_poses(bag_dict: dict):
+def get_robot_poses(bag_dict: dict) -> list[coverage_control.PointVector]:
     all_pose_data = bag_dict["sim"]["all_robot_positions"]
     t_pos_arr = np.array(list(all_pose_data.keys()))
     t_pos_arr = np.sort(t_pos_arr)
     data_vec = [coverage_control.PointVector(np.clip(all_pose_data[t], 1, 512)) for t in t_pos_arr] # TODO BAD!
     return data_vec
+
+def upscale_map(map: NDArray[np.float32], binning_factor = 2):
+    # Assumes binning
+    x_coord = map[:, 0].astype(int) // binning_factor
+    y_coord = map[:, 1].astype(int) // binning_factor
+    val = map[:, 2]
+    map_dense = np.full((256,256), np.nan) # TODO fix magic numbers
+    for i in range(map.shape[0]):
+        map_dense[y_coord[i], x_coord[i]] = val[i]
+    map_upscaled = np.clip(ndimage.zoom(map_dense, 2, order=3), 0, 1)
+    return map_upscaled
+
+def get_maps(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32], list[float]]:
+    # Only need one global map
+    global_map = next(iter(bag_dict["sim"]["global_map"].values()), None)
+    if global_map is None:
+        print(RED + "Error: global map is none. Exiting..." + RESET)
+        exit(1)
+    global_map_upscaled = upscale_map(global_map)
+
+    # System maps are indexed by timestep
+    system_maps = list(bag_dict["sim"]["system_map"].values())
+    t_system_maps = list(bag_dict["sim"]["system_map"].keys())
+    system_maps_upscaled = np.zeros((len(t_system_maps), 512,512), dtype=np.float32)
+    for i in range(system_maps_upscaled.shape[0]):
+        system_maps_upscaled[i] = upscale_map(system_maps[i])
+    return global_map_upscaled, system_maps_upscaled, t_system_maps
 
 def create_cc_env(cc_parameters: coverage_control.Parameters,
                   idf_path: str,
@@ -122,7 +148,7 @@ def create_cc_env(cc_parameters: coverage_control.Parameters,
                 world_idf,
                 robot_poses)
     except Exception as e:
-        print(RED + f"Failed to create CoverageSystem: {e}" + RESET)
+        print(RED + f"Failed to create CoverageSystem" + RESET)
         return None
     return cc_env
 
@@ -191,10 +217,50 @@ def plot_trajectory(robot_poses: list[coverage_control.PointVector],
                    )
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
+    ax.set_xlim([0,512])
+    ax.set_ylim([0,512])
     plt.tight_layout
     save_fig(fig, save_dir, bag_name+"_traj")
     print(GREEN + "Done!" + RESET)
 
+def plot_system_map(system_maps_dense: NDArray[np.float32],
+                    save_dir: str,
+                    bag_name: str
+                    ):
+    # for images
+    tmp_dir = save_dir + "/tmp"
+    os.makedirs(save_dir + "/tmp")
+
+    print(BLUE + f"Plotting the system maps and saving to {tmp_dir}..." + RESET, end="")
+    for t in range(system_maps_dense.shape[0]):
+        fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
+        sns.heatmap(system_maps_dense[t], annot=True, fmt=".0f", cmap="seismic_r", center=0)
+        ax.set_xlabel('x (m)')
+        ax.set_ylabel('y (m)')
+        ax.set_xlim([0,512])
+        ax.set_ylim([0,512])
+        save_fig(fig, tmp_dir, f"{t:08d}")
+    print(GREEN + "Done!" + RESET)
+
+def plot_global_map(global_map_upscaled: NDArray[np.float32],
+                    global_map_dense: NDArray[np.float32],
+                    save_dir: str,
+                    bag_name: str
+                    ):
+    save_fn = save_dir + "/" + bag_name + "_global.png"
+    print(BLUE + f"Plotting the global map and saving to {save_fn}..." + RESET, end="")
+    fig, ax = plt.subplots(1, 2, figsize=(TWO_COLUMN_WIDTH, FIGURE_HEIGHT))
+    ax[0].imshow(global_map_upscaled, origin="lower")
+    ax[0].set_title("Upscaled")
+    ax[0].set_xlabel("x (m)")
+    ax[0].set_ylabel("y (m)")
+
+    ax[1].imshow(global_map_dense, origin="lower")
+    ax[1].set_title("Dense")
+    ax[1].set_xlabel("x (m)")
+    ax[1].set_ylabel("y (m)")
+    save_fig(fig, save_dir, bag_name+"_global")
+    print(GREEN + "Done!" + RESET)
 
 def plot_bag(bag_dict: dict,
              params_file: str,
@@ -221,13 +287,17 @@ def plot_bag(bag_dict: dict,
     set_theme()
 
     cc_parameters = coverage_control.Parameters(params_file)
+    total_time = bag_dict["total_time"]
+    robot_poses  = get_robot_poses(bag_dict)
+    t_poses = np.linspace(0, total_time, num=len(robot_poses))
 
-    robot_poses = get_robot_poses(bag_dict)
+    global_map_upscaled, global_map_dense = get_maps(bag_dict)
+
     cc_env = create_cc_env(cc_parameters, idf_file, robot_poses[0])
     if cc_env is None:
         print(RED + "Exiting" + RESET)
-        exit(0)
+        exit(1)
     plot_cost(cc_env,robot_poses, save_dir, bag_name, colors)
     plot_trajectory(robot_poses, save_dir, bag_name, colors)
-
-
+    plot_global_map(global_map_upscaled, global_map_dense, save_dir, bag_name)
+    #plot_system_map(system_maps_dense, save_dir, bag_name)

@@ -61,11 +61,17 @@ def extract_topic(
 
 def get_position(msg):
     return np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+
 def get_vel(msg):
     return np.array([msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z])
+
 def get_pc2(msg):
     pc2_native = pc2_to_native(msg)
-    return np.array(point_cloud2.read_points_list(pc2_native, field_names=["x", "y", "z", "intensity"]))
+    points_list = point_cloud2.read_points_list(pc2_native, field_names=["x", "y", "intensity"])
+    points_arr = np.array(points_list)
+    pdb.set_trace()
+    return points_arr 
+
 def get_mission_ctrl_legacy(msg): # supporting old naming conventions
     return np.array([
             msg.hw_enable,
@@ -77,6 +83,7 @@ def get_mission_ctrl_legacy(msg): # supporting old naming conventions
             msg.pac_lpac_l1,
             msg.pac_lpac_l2
             ], dtype = bool)
+
 def get_mission_ctrl(msg):
     return np.array([
             msg.hw_enable,
@@ -88,6 +95,7 @@ def get_mission_ctrl(msg):
             msg.pac_lpac_l1,
             msg.pac_lpac_l2
             ], dtype = bool)
+
 def get_all_robot_positions(msg) -> coverage_control.PointVector:
     positions = []
     for i in range(0, len(msg.positions), 2):
@@ -118,7 +126,12 @@ def extract_bag(filepath: str):
         table = {}
         cnt = 1
         num_msgs = reader.message_count
+        start_time = -1
+        end_time = 0
         for connection, timestamp, rawdata in reader.messages():
+            if start_time == -1:
+                start_time = timestamp
+            end_time = timestamp
             result = extract_topic(connection, timestamp, rawdata)
             sys.stdout.write(f"Processed {cnt}/{num_msgs} messages in the playback.\r")
             sys.stdout.flush()
@@ -132,7 +145,10 @@ def extract_bag(filepath: str):
                 table[namespace][topic_name] = entry
             else:
                 table[namespace][topic_name].update(entry)
+        elapsed_time = (end_time - start_time) / 1e9
+        table["total_time"] = elapsed_time
         print(GREEN + "\nDone!" + RESET)
+        print(RED + f"Elapsed time {elapsed_time}s" + RESET)
         print(BLUE + f"Saving to {save_path}..." + RESET, end="")
         with open(save_path, "wb") as f:
             pickle.dump(table, f, protocol=pickle.HIGHEST_PROTOCOL)
