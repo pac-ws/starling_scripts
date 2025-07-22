@@ -15,3 +15,8 @@ catpuccin_colors = [
     'rgba(229, 200, 144, 1.0)',  # Yellow
     'rgba(108, 111, 133, 1.0)',  # subtext0
 ]
+
+map_colors = {
+    "red" : {"idf": "Reds", "robot": "blue", "robot_marker": "x"},
+    "blue" : {"idf": "Blues", "robot": "red", "robot_marker": "X"}
+}

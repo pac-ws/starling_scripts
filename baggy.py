@@ -105,6 +105,13 @@ if __name__ == "__main__":
                                 help="Importance density function file.\
                                         default: /workspace/configs/penn_envs/10r_2.env"
                                 )
+    parser_plotter.add_argument("-c",
+                                "--color",
+                                type=str,
+                                default="red",
+                                help="Colorscheme to use when plotting the system maps. default: red"
+                                )
+
     parser_plot_xor = parser_plotter.add_mutually_exclusive_group(required=True)
     parser_plot_xor.add_argument("-a", "--all", action="store_true", help="Plot bags in the given directory")
     parser_plot_xor.add_argument("-m", "--match", type=str, help="Plot a subsection of bags in the directory")
@@ -120,5 +127,5 @@ if __name__ == "__main__":
         elif args.command == "plot":
             filepath = args.dir + "/" + b + "/" + b + ".pkl" # pkl file shares name of bag dir
             bag_dict = load_bag(filepath)
-            bag_plotter.plot_bag(bag_dict, args.params, args.idf, args.output, b)
+            bag_plotter.plot_bag(bag_dict, args.params, args.idf, args.output, b, args.color)
             

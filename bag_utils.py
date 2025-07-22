@@ -1,5 +1,11 @@
+import pdb
+import os
+import numpy as np
+from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 import coverage_control
+from scipy import ndimage
+from colors import *
 
 class Robot:
     def __init__(self,
@@ -16,12 +22,12 @@ def save_fig(fig: plt.Figure,
     fig.savefig(figure_dir + "/" + filename_no_ext + ".pdf")
     fig.savefig(figure_dir + "/" + filename_no_ext + ".png")
 
-def get_robot_poses(bag_dict: dict) -> list[coverage_control.PointVector]:
+def get_robot_poses(bag_dict: dict) -> tuple[list[coverage_control.PointVector], NDArray[np.float32]]:
     all_pose_data = bag_dict["sim"]["all_robot_positions"]
     t_pos_arr = np.array(list(all_pose_data.keys()))
     t_pos_arr = np.sort(t_pos_arr)
     data_vec = [coverage_control.PointVector(np.clip(all_pose_data[t], 1, 512)) for t in t_pos_arr] # TODO BAD!
-    return data_vec
+    return data_vec, t_pos_arr
 
 def get_mission_control(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
     mission_control_data = np.array(list(bag_dict["mission_control"]["mission_control"].values()))
@@ -55,6 +61,24 @@ def get_maps(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32], 
     for i in range(system_maps_upscaled.shape[0]):
         system_maps_upscaled[i] = upscale_map(system_maps[i])
     return global_map_upscaled, system_maps_upscaled, t_system_maps
+
+def align(arr: NDArray[np.float64], 
+          val: np.float64
+          ) -> np.int64:
+    return np.argmin(np.abs(arr - val))
+
+def experiment_window(mission_control_data: NDArray[bool], 
+                      t_mission_control: NDArray[np.float32]
+                      ) -> tuple[np.float64, np.float64]:
+    takeoff = mission_control_data[:,2]
+    landing = mission_control_data[:,3]
+
+    idx_start = np.argmax(np.diff(takeoff, n=1))
+    idx_stop = np.argmax(np.diff(landing, n=1))
+
+    start_time = t_mission_control[idx_start] / 1e9
+    stop_time = t_mission_control[idx_stop] / 1e9
+    return start_time, stop_time
 
 def create_cc_env(cc_parameters: coverage_control.Parameters,
                   idf_path: str,
