@@ -1,6 +1,7 @@
 import pdb
 import os
 from os.path import isdir
+import bag_utils as utils
 import re
 import numpy as np
 import coverage_control
@@ -17,20 +18,6 @@ TWO_COLUMN_WIDTH = 7.16
 LEGEND_WIDTH = 0.5
 FIGURE_HEIGHT = 3
 
-class Robot:
-    def __init__(self,
-                 ns: str,
-                 data_pos: NDArray[np.float32],
-                 ):
-        self.ns = ns
-        self.data_pos = data_pos
-
-def save_fig(fig: plt.Figure,
-             figure_dir: str,
-             filename_no_ext: str
-             ):
-    fig.savefig(figure_dir + "/" + filename_no_ext + ".pdf")
-    fig.savefig(figure_dir + "/" + filename_no_ext + ".png")
 
 def seaborn_colors(colors : list[str]) -> list[[float]]:
     sns_colors = []
@@ -84,81 +71,6 @@ def so_theme():
             "pdf.fonttype": 42,
         }
     )
-
-def process_bag(bag_dict: dict):
-    robots = []
-    for k, v in bag_dict.items():
-        if k == "/sim/all_robot_positions":
-            all_pose_data = v[k]
-            t_pos_arr = np.array(list(all_pose_data.keys()))
-            t_pos_arr = np.sort(t_pos_arr)
-            data_vec = [coverage_control.PointVector(all_pose_data[t]) for t in t_pos_arr]
-        if re.match(r"r\d+", k):
-            pose_data = v["pose"]
-            t_pos_arr = np.array(list(pose_data.keys()))
-            t_pos_arr = np.sort(t_pos_arr)
-            data_vec = [pose_data[t] for t in t_pos_arr]
-            #t_pos_arr -= t_pos_arr[0]
-            data_arr = np.array(data_vec)
-            robots.append(Robot(ns=k, data_pos=data_arr))
-    return robots
-
-def get_robot_poses(bag_dict: dict) -> list[coverage_control.PointVector]:
-    all_pose_data = bag_dict["sim"]["all_robot_positions"]
-    t_pos_arr = np.array(list(all_pose_data.keys()))
-    t_pos_arr = np.sort(t_pos_arr)
-    data_vec = [coverage_control.PointVector(np.clip(all_pose_data[t], 1, 512)) for t in t_pos_arr] # TODO BAD!
-    return data_vec
-
-def get_mission_control(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
-    mission_control_data = np.array(list(bag_dict["mission_control"]["mission_control"].values()))
-    t_mission_control = np.array(list(bag_dict["mission_control"]["mission_control"].keys()))
-    return mission_control_data, t_mission_control
-
-def upscale_map(map: NDArray[np.float32], map_size=512, binning_factor = 2, order=1):
-    # Assumes binning
-    x_coord = map[:, 0].astype(int) // binning_factor
-    y_coord = map[:, 1].astype(int) // binning_factor
-    val = map[:, 2]
-    dense_size = map_size // binning_factor
-    map_dense = np.full((dense_size, dense_size), np.nan) 
-    for i in range(map.shape[0]):
-        map_dense[y_coord[i], x_coord[i]] = val[i]
-    map_upscaled = np.clip(ndimage.zoom(map_dense, 2, order=order), 0, 1)
-    return map_upscaled
-
-def get_maps(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32], list[float]]:
-    # Only need one global map
-    global_map = next(iter(bag_dict["sim"]["global_map"].values()), None)
-    if global_map is None:
-        print(RED + "Error: global map is none. Exiting..." + RESET)
-        exit(1)
-    global_map_upscaled = upscale_map(global_map, order=3)
-
-    # System maps are indexed by timestep
-    system_maps = list(bag_dict["sim"]["system_map"].values())
-    t_system_maps = list(bag_dict["sim"]["system_map"].keys())
-    system_maps_upscaled = np.zeros((len(t_system_maps), 512,512), dtype=np.float32) # TODO fix magic numbers
-    for i in range(system_maps_upscaled.shape[0]):
-        system_maps_upscaled[i] = upscale_map(system_maps[i])
-    return global_map_upscaled, system_maps_upscaled, t_system_maps
-
-def create_cc_env(cc_parameters: coverage_control.Parameters,
-                  idf_path: str,
-                  robot_poses: coverage_control.PointVector
-                  ) -> coverage_control.CoverageSystem | None:
-    if not os.path.isfile(idf_path):
-        return False
-    try:
-        world_idf = coverage_control.WorldIDF(cc_parameters, idf_path)
-        cc_env = coverage_control.CoverageSystem(
-                cc_parameters,
-                world_idf,
-                robot_poses)
-    except Exception as e:
-        print(RED + f"Failed to create CoverageSystem" + RESET)
-        return None
-    return cc_env
 
 def plot_cost(cc_env: coverage_control.CoverageSystem,
               robot_poses: list[coverage_control.PointVector],
@@ -290,16 +202,16 @@ def plot_bag(bag_dict: dict,
 
     cc_parameters = coverage_control.Parameters(params_file)
     total_time = bag_dict["total_time"]
-    robot_poses  = get_robot_poses(bag_dict)
+    robot_poses  = utils.get_robot_poses(bag_dict)
     t_poses = np.linspace(0, total_time, num=len(robot_poses))
 
-    mission_control_data, t_mission_control = get_mission_control(bag_dict)
+    mission_control_data, t_mission_control = utils.get_mission_control(bag_dict)
     takeoff_signal = mission_control_data[:,2]
     land_signal = mission_control_data[:,3]
 
-    global_map_upscaled, system_maps_upscaled, t_system_maps = get_maps(bag_dict)
+    global_map_upscaled, system_maps_upscaled, t_system_maps = utils.get_maps(bag_dict)
 
-    cc_env = create_cc_env(cc_parameters, idf_file, robot_poses[0])
+    cc_env = utils.create_cc_env(cc_parameters, idf_file, robot_poses[0])
     if cc_env is None:
         print(RED + "Exiting" + RESET)
         exit(1)
