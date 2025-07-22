@@ -15,7 +15,7 @@ from colors import *
 ONE_COLUMN_WIDTH = 3.5
 TWO_COLUMN_WIDTH = 7.16
 LEGEND_WIDTH = 0.5
-FIGURE_HEIGHT = 2.5
+FIGURE_HEIGHT = 3
 
 class Robot:
     def __init__(self,
@@ -109,6 +109,11 @@ def get_robot_poses(bag_dict: dict) -> list[coverage_control.PointVector]:
     t_pos_arr = np.sort(t_pos_arr)
     data_vec = [coverage_control.PointVector(np.clip(all_pose_data[t], 1, 512)) for t in t_pos_arr] # TODO BAD!
     return data_vec
+
+def get_mission_control(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
+    mission_control_data = np.array(list(bag_dict["mission_control"]["mission_control"].values()))
+    t_mission_control = np.array(list(bag_dict["mission_control"]["mission_control"].keys()))
+    return mission_control_data, t_mission_control
 
 def upscale_map(map: NDArray[np.float32], map_size=512, binning_factor = 2, order=1):
     # Assumes binning
@@ -236,6 +241,7 @@ def plot_system_maps(system_maps: NDArray[np.float32],
     print(BLUE + f"Plotting the system maps and saving to {tmp_dir}..." + RESET, end="")
     for i in range(system_maps.shape[0]):
         plot_map(system_maps[i], tmp_dir, f"{i:06d}")
+        plt.close()
     print(GREEN + "Done!" + RESET)
 
 def plot_global_map(global_map: NDArray[np.float32],
@@ -246,6 +252,7 @@ def plot_global_map(global_map: NDArray[np.float32],
     print(BLUE + f"Plotting the global map and saving to {save_fn}..." + RESET, end="")
     plot_map(global_map, save_dir, filename)
     print(GREEN + "Done!" + RESET)
+    plt.close()
 
 def plot_map(map: NDArray[np.float32],
              save_dir: str,
@@ -256,7 +263,6 @@ def plot_map(map: NDArray[np.float32],
     ax.set_xlabel("x (m)")
     ax.set_ylabel("y (m)")
     save_fig(fig, save_dir, filename) 
-    plt.close()
 
 def plot_bag(bag_dict: dict,
              params_file: str,
@@ -286,6 +292,10 @@ def plot_bag(bag_dict: dict,
     total_time = bag_dict["total_time"]
     robot_poses  = get_robot_poses(bag_dict)
     t_poses = np.linspace(0, total_time, num=len(robot_poses))
+
+    mission_control_data, t_mission_control = get_mission_control(bag_dict)
+    takeoff_signal = mission_control_data[:,2]
+    land_signal = mission_control_data[:,3]
 
     global_map_upscaled, system_maps_upscaled, t_system_maps = get_maps(bag_dict)
 
