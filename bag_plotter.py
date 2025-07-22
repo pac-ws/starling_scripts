@@ -159,9 +159,11 @@ def plot_system_maps(system_maps: NDArray[np.float32],
     for i in range(system_maps.shape[0]):
         fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
         if global_map is not None:
-            global_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), global_map)
-            ax.imshow(global_map_masked, origin="lower", cmap="gray", alpha=0.5)
-        ax.imshow(system_maps[i], origin="lower", cmap=color_scheme["idf"])
+            system_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), system_maps[i])
+            ax.imshow(global_map, origin="lower", cmap="gray", alpha=0.5)
+            ax.imshow(system_map_masked, origin="lower", cmap=color_scheme["idf"])
+        else:
+            ax.imshow(system_maps[i], origin="lower", cmap=color_scheme["idf"])
         ax.scatter(poses[i,:,0], poses[i,:,1], marker=color_scheme["robot_marker"], color=color_scheme["robot"])
         if en_axis_labels:
             ax.set_xlabel("x (m)") 
