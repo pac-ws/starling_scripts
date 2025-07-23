@@ -46,7 +46,7 @@ def upscale_map(map: NDArray[np.float32], map_size=512, binning_factor = 2, orde
     map_upscaled = np.clip(ndimage.zoom(map_dense, 2, order=order), 0, 1)
     return map_upscaled
 
-def get_maps(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32], list[float]]:
+def get_maps(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32], NDArray[np.float32]]:
     # Only need one global map
     global_map = next(iter(bag_dict["sim"]["global_map"].values()), None)
     if global_map is None:
@@ -56,7 +56,7 @@ def get_maps(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32], 
 
     # System maps are indexed by timestep
     system_maps = list(bag_dict["sim"]["system_map"].values())
-    t_system_maps = list(bag_dict["sim"]["system_map"].keys())
+    t_system_maps = np.array(list(bag_dict["sim"]["system_map"].keys()))
     system_maps_upscaled = np.zeros((len(t_system_maps), 512,512), dtype=np.float32) # TODO fix magic numbers
     for i in range(system_maps_upscaled.shape[0]):
         system_maps_upscaled[i] = upscale_map(system_maps[i])
@@ -97,3 +97,15 @@ def create_cc_env(cc_parameters: coverage_control.Parameters,
         return None
     return cc_env
 
+def create_pose_file(robot_poses: NDArray[np.float32],
+                     bag_name: str
+                     ):
+    fp = f"/workspace/px4_multi_sim/robot_poses_{bag_name}.sh"
+    print(BLUE + f"Creating pose file for sim testing at {fp} ..." + RESET, flush=True)
+    with open(fp, "w") as f:
+        for i in range(robot_poses.shape[0]):
+            f.write(f"{i} {robot_poses[i,0]} {robot_poses[i,1]} 1.5708\n")
+        f.close()
+    print(GREEN + "Done!" + RESET)
+        
+        

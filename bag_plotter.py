@@ -144,6 +144,7 @@ def plot_trajectory(robot_poses: list[coverage_control.PointVector],
 
 def plot_system_maps(system_maps: NDArray[np.float32],
                      poses: NDArray[np.float32],
+                     t_maps: NDArray[np.float32],
                      save_dir: str,
                      filename: str,
                      color_scheme: dict,
@@ -151,6 +152,8 @@ def plot_system_maps(system_maps: NDArray[np.float32],
                      en_axis_labels = False,
                      en_grid = False
                      ):
+    t_maps_normalized = t_maps -  t_maps[0]
+
     tmp_dir = save_dir + "/tmp"
     if not os.path.isdir(tmp_dir):
         os.makedirs(save_dir + "/tmp")
@@ -160,7 +163,7 @@ def plot_system_maps(system_maps: NDArray[np.float32],
         fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
         if global_map is not None:
             system_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), system_maps[i])
-            ax.imshow(global_map, origin="lower", cmap="gray", alpha=0.5)
+            ax.imshow(global_map, origin="lower", cmap="gray_r", alpha=0.25)
             ax.imshow(system_map_masked, origin="lower", cmap=color_scheme["idf"])
         else:
             ax.imshow(system_maps[i], origin="lower", cmap=color_scheme["idf"])
@@ -172,10 +175,9 @@ def plot_system_maps(system_maps: NDArray[np.float32],
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
         ax.grid(visible=en_grid)
-        utils.save_fig(fig, tmp_dir, f"{i:06d}") 
-        plt.close()
 
-        break
+        utils.save_fig(fig, tmp_dir, f"{t_maps_normalized[i]}_{i:06d}") 
+        plt.close()
     print(GREEN + "Done!" + RESET)
 
 def plot_global_map(global_map: NDArray[np.float32],
@@ -183,7 +185,7 @@ def plot_global_map(global_map: NDArray[np.float32],
                     filename: str
                     ):
     save_fn = save_dir + "/" + filename + ".png"
-    print(BLUE + f"Plotting the global map and saving to {save_fn}..." + RESET, end="")
+    print(BLUE + f"Plotting the global map and saving to {save_fn}..." + RESET, end="", flush=True)
     plot_map(global_map, save_dir, filename)
     print(GREEN + "Done!" + RESET)
     plt.close()
@@ -234,6 +236,9 @@ def plot_bag(bag_dict: dict,
     pose_indices = np.argmin(np.abs(X - Y), axis=1)
     poses_for_maps = np.array(robot_poses)[pose_indices]
 
+    # Used for simulating with the same start conditions
+    utils.create_pose_file(poses_for_maps[0], bag_name)
+
     cc_env = utils.create_cc_env(cc_parameters, idf_file, robot_poses[0])
     if cc_env is None:
         print(RED + "Exiting" + RESET)
@@ -243,6 +248,7 @@ def plot_bag(bag_dict: dict,
     plot_global_map(global_map_upscaled, save_dir, bag_name + "_global")
     plot_system_maps(system_maps_upscaled,
                      poses_for_maps,
+                     t_system_maps,
                      save_dir,
                      bag_name + "_system",
                      map_colors[color_choice],
