@@ -1,4 +1,5 @@
 import bag_reader
+import bag_process
 import bag_plotter
 import argparse
 import os
@@ -35,6 +36,23 @@ def load_bag(filepath: str):
     with open(filepath, "rb") as f:
         bag_dict = pickle.load(f)
     return bag_dict
+
+def main(args):
+    bags = list_directories(args.dir, args.all, args.match, args.single)
+    data = []
+    for b in bags:
+        if args.command == "extract":
+            filepath = args.dir + "/" + b
+            bag_reader.extract_bag(filepath)
+        elif args.command == "plot":
+            filepath = args.dir + "/" + b + "/" + b + ".pkl" # pkl file shares name of bag dir
+            bag_dict = load_bag(filepath)
+            data.append(bag_process.process_bag(bag_dict, args.params, args.idf, args.output, b))
+            if args.single:
+                bag_plotter.plot_bag(data[0], args.output, args.color)
+                return
+    if args.command == "plot":
+        bag_plotter.plot_combined(data, args.output, args.color)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="bag_plotter.py",
@@ -111,6 +129,12 @@ if __name__ == "__main__":
                                 default="red",
                                 help="Colorscheme to use when plotting the system maps. default: red"
                                 )
+    parser_plotter.add_argument("-x",
+                                "--combine",
+                                action="store_true",
+                                help="Create combine plots for the bags selection (use with match or all)"
+                                )
+                                
 
     parser_plot_xor = parser_plotter.add_mutually_exclusive_group(required=True)
     parser_plot_xor.add_argument("-a", "--all", action="store_true", help="Plot bags in the given directory")
@@ -119,13 +143,4 @@ if __name__ == "__main__":
 
     #Execution
     args = parser.parse_args()
-    bags = list_directories(args.dir, args.all, args.match, args.single)
-    for b in bags:
-        if args.command == "extract":
-            filepath = args.dir + "/" + b
-            bag_reader.extract_bag(filepath)
-        elif args.command == "plot":
-            filepath = args.dir + "/" + b + "/" + b + ".pkl" # pkl file shares name of bag dir
-            bag_dict = load_bag(filepath)
-            bag_plotter.plot_bag(bag_dict, args.params, args.idf, args.output, b, args.color)
-            
+    main(args)

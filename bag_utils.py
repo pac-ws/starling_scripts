@@ -50,7 +50,7 @@ def get_maps(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32], 
     # Only need one global map
     global_map = next(iter(bag_dict["sim"]["global_map"].values()), None)
     if global_map is None:
-        print(RED + "Error: global map is none. Exiting..." + RESET)
+        printR("Error: global map is none. Exiting...")
         exit(1)
     global_map_upscaled = upscale_map(global_map, order=3)
 
@@ -93,7 +93,7 @@ def create_cc_env(cc_parameters: coverage_control.Parameters,
                 world_idf,
                 robot_poses)
     except Exception as e:
-        print(RED + f"Failed to create CoverageSystem" + RESET)
+        printR(f"Failed to create CoverageSystem")
         return None
     return cc_env
 
@@ -101,11 +101,18 @@ def create_pose_file(robot_poses: NDArray[np.float32],
                      bag_name: str
                      ):
     fp = f"/workspace/px4_multi_sim/robot_poses_{bag_name}.sh"
-    print(BLUE + f"Creating pose file for sim testing at {fp} ..." + RESET, flush=True)
+    printB(f"Creating pose file for sim testing at {fp} ...", end="")
     with open(fp, "w") as f:
         for i in range(robot_poses.shape[0]):
             f.write(f"{i} {robot_poses[i,0]} {robot_poses[i,1]} 1.5708\n")
         f.close()
-    print(GREEN + "Done!" + RESET)
+    printG("Done!")
         
-        
+def printR(msg: str, end="\n", flush=True):
+    print(RED + f"{msg}" + RESET, end=end, flush=flush)
+def printG(msg: str, end="\n", flush=True):
+    print(GREEN + f"{msg}" + RESET, end=end, flush=flush)
+def printB(msg: str, end="\n", flush=True):
+    print(BLUE + f"{msg}" + RESET, end=end, flush=flush)
+def printY(msg: str, end="\n", flush=True):
+    print(YELLOW + f"{msg}" + RESET, end=end, flush=flush)

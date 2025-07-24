@@ -69,7 +69,6 @@ def get_pc2(msg):
     pc2_native = pc2_to_native(msg)
     points_list = point_cloud2.read_points_list(pc2_native, field_names=["x", "y", "intensity"])
     points_arr = np.array(points_list)
-    pdb.set_trace()
     return points_arr 
 
 def get_mission_ctrl_legacy(msg): # supporting old naming conventions

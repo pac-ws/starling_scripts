@@ -1,7 +1,9 @@
+# pyright: reportAttributeAccessIssue=false
 import pdb
 import os
 from os.path import isdir
 import bag_utils as utils
+from bag_utils import printR, printG, printB, printY
 import re
 import numpy as np
 from numpy.typing import NDArray
@@ -11,12 +13,12 @@ import seaborn as sns
 import seaborn.objects as so
 from seaborn import plotting_context, axes_style
 from colors import *
+from bag_process import ProcessedBag
 
 ONE_COLUMN_WIDTH = 3.5
 TWO_COLUMN_WIDTH = 7.16
 LEGEND_WIDTH = 0.5
 FIGURE_HEIGHT = 3.5
-
 
 def seaborn_colors(colors : list[str]) -> list[[float]]:
     sns_colors = []
@@ -71,37 +73,22 @@ def so_theme():
         }
     )
 
-def plot_cost(cc_env: coverage_control.CoverageSystem,
-              robot_poses: list[coverage_control.PointVector],
+def plot_cost(normalized_cost_arr: NDArray[np.float32],
+              t_fine: NDArray[np.float32],
               save_dir: str,
               bag_name: str,
               colors: list[str]
               ):
     fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
 
-    total_steps = len(robot_poses)
-    normalized_cost_arr = np.empty(total_steps, dtype=np.float64)
-
-    print(BLUE + f"Evaluating coverage cost for {bag_name}..." + RESET, end="")
-
-    initial_cost = cc_env.GetObjectiveValue()
-    normalized_cost_arr[0] = 1.
-    for i in range(1, total_steps):
-        cc_env.SetGlobalRobotPositions(robot_poses[i])
-        normalized_cost = cc_env.GetObjectiveValue() / initial_cost
-        normalized_cost_arr[i] = normalized_cost
-
-    print(GREEN + "Done!" + RESET)
-
     save_fn = save_dir + "/" + bag_name + "_cost.png"
-    print(BLUE + f"Plotting and saving to {save_fn}..." + RESET, end="")
-
-    ax.plot(normalized_cost_arr, color=colors[0])
-    ax.set_xlabel('Step')
+    printB(f"Plotting and saving to {save_fn}...", end="")
+    ax.plot(t_fine, normalized_cost_arr, color=colors[0])
+    ax.set_xlabel('Time (s)')
     ax.set_ylabel('Normalized Coverage Cost')
     plt.tight_layout()
     utils.save_fig(fig, save_dir, bag_name + "_cost")
-    print(GREEN + "Done!" + RESET)
+    printG("Done!")
 
 def plot_trajectory(robot_poses: list[coverage_control.PointVector],
                     save_dir: str,
@@ -144,19 +131,18 @@ def plot_trajectory(robot_poses: list[coverage_control.PointVector],
 
 def plot_system_maps(system_maps: NDArray[np.float32],
                      poses: NDArray[np.float32],
-                     t_maps: NDArray[np.float32],
+                     t_coarse: NDArray[np.float32],
                      save_dir: str,
-                     filename: str,
+                     bag_name: str,
                      color_scheme: dict,
                      global_map: NDArray[np.float32] | None = None,
                      en_axis_labels = False,
                      en_grid = False
                      ):
-    t_maps_normalized = t_maps -  t_maps[0]
 
-    tmp_dir = save_dir + "/tmp"
+    tmp_dir = save_dir + f"/{bag_name}_tmp"
     if not os.path.isdir(tmp_dir):
-        os.makedirs(save_dir + "/tmp")
+        os.makedirs(tmp_dir)
 
     print(BLUE + f"Plotting the system maps and saving to {tmp_dir}..." + RESET, end="")
     for i in range(system_maps.shape[0]):
@@ -166,7 +152,7 @@ def plot_system_maps(system_maps: NDArray[np.float32],
             ax.imshow(global_map, origin="lower", cmap="gray_r", alpha=0.25)
             ax.imshow(system_map_masked, origin="lower", cmap=color_scheme["idf"])
         else:
-            ax.imshow(system_maps[i], origin="lower", cmap=color_scheme["idf"])
+            ax.imshow(system_maps[i], origin="lower", cmap=color_scheme["idf"]) #pyright: ignore
         ax.scatter(poses[i,:,0], poses[i,:,1], marker=color_scheme["robot_marker"], color=color_scheme["robot"])
         if en_axis_labels:
             ax.set_xlabel("x (m)") 
@@ -176,7 +162,7 @@ def plot_system_maps(system_maps: NDArray[np.float32],
             ax.get_yaxis().set_visible(False)
         ax.grid(visible=en_grid)
 
-        utils.save_fig(fig, tmp_dir, f"{t_maps_normalized[i]}_{i:06d}") 
+        utils.save_fig(fig, tmp_dir, f"{t_coarse[i]:.2f}_{i:06d}") 
         plt.close()
     print(GREEN + "Done!" + RESET)
 
@@ -200,57 +186,53 @@ def plot_map(map: NDArray[np.float32],
     ax.set_ylabel("y (m)")
     utils.save_fig(fig, save_dir, filename) 
 
-def plot_bag(bag_dict: dict,
-             params_file: str,
-             idf_file: str,
+def plot_bag(bag_data: ProcessedBag,
              save_dir: str,
-             bag_name: str,
              color_choice: str,
              ):
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
-
     colors = seaborn_colors(catpuccin_colors)
     set_theme()
 
-    cc_parameters = coverage_control.Parameters(params_file)
-    total_time = bag_dict["total_time"]
+    plot_cost(bag_data.normalized_cost, bag_data.t_fine, save_dir, bag_data.bag_name, colors)
+    #plot_trajectory(robot_poses, save_dir, bag_name, colors)
+    plot_global_map(bag_data.global_map, save_dir, bag_data.bag_name + "_global")
+    #plot_system_maps(bag_data.system_maps,
+    #                 bag_data.robot_poses,
+    #                 bag_data.t_coarse,
+    #                 save_dir,
+    #                 bag_data.bag_name,
+    #                 map_colors[color_choice],
+    #                 bag_data.global_map
+    #                 )
 
-    mission_control_data, t_mission_control = utils.get_mission_control(bag_dict)
-    start_time, stop_time = utils.experiment_window(mission_control_data, t_mission_control)
+def plot_combined(bag_data_arr: list[ProcessedBag],
+                  save_dir: str,
+                  color_choice: str
+                  ):
 
-    robot_poses, t_poses  = utils.get_robot_poses(bag_dict)
-    poses_start = utils.align(t_poses, start_time)
-    poses_stop  = utils.align(t_poses, stop_time)
-    robot_poses = robot_poses[poses_start:poses_stop]
-    t_poses = t_poses[poses_start:poses_stop]
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    colors = seaborn_colors(catpuccin_colors)
+    set_theme()
 
-    global_map_upscaled, system_maps_upscaled, t_system_maps = utils.get_maps(bag_dict)
-    maps_start = utils.align(t_system_maps, start_time)
-    maps_stop = utils.align(t_system_maps, stop_time)
-    system_maps_upscaled = system_maps_upscaled[maps_start:maps_stop]
-    t_system_maps = t_system_maps[maps_start:maps_stop]
+    fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
+    save_fn = save_dir + "/" + "combined_cost.png"
+    printB(f"Plotting and saving to {save_fn}...", end="")
+    for data in bag_data_arr:
+        ax.plot(data.t_fine, data.normalized_cost, color=colors[0], label=data.bag_name)
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Normalized Coverage Cost')
+    plt.legend()
+    plt.tight_layout()
+    utils.save_fig(fig, save_dir, "combined_cost")
+    printG("Done!")
 
-    # Create a mapping of poses to system_maps
-    X, Y = np.meshgrid(t_poses, t_system_maps) 
-    pose_indices = np.argmin(np.abs(X - Y), axis=1)
-    poses_for_maps = np.array(robot_poses)[pose_indices]
+    
 
-    # Used for simulating with the same start conditions
-    utils.create_pose_file(poses_for_maps[0], bag_name)
+    
 
-    cc_env = utils.create_cc_env(cc_parameters, idf_file, robot_poses[0])
-    if cc_env is None:
-        print(RED + "Exiting" + RESET)
-        exit(1)
-    plot_cost(cc_env,robot_poses, save_dir, bag_name, colors)
-    plot_trajectory(robot_poses, save_dir, bag_name, colors)
-    plot_global_map(global_map_upscaled, save_dir, bag_name + "_global")
-    plot_system_maps(system_maps_upscaled,
-                     poses_for_maps,
-                     t_system_maps,
-                     save_dir,
-                     bag_name + "_system",
-                     map_colors[color_choice],
-                     global_map_upscaled
-                     )
+
+
+
