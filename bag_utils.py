@@ -8,14 +8,6 @@ import coverage_control
 from scipy import ndimage
 from colors import *
 
-class Robot:
-    def __init__(self,
-                 ns: str,
-                 data_pos: NDArray[np.float32],
-                 ):
-        self.ns = ns
-        self.data_pos = data_pos
-
 def save_fig(fig: plt.Figure,
              figure_dir: str,
              filename_no_ext: str
@@ -65,7 +57,7 @@ def get_maps(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32], 
     # Only need one global map
     global_map = next(iter(bag_dict["sim"]["global_map"].values()), None)
     if global_map is None:
-        printR("Error: global map is none. Exiting...")
+        printC("Error: global map is none. Exiting...", RED)
         exit(1)
     global_map_upscaled = upscale_map(global_map, order=3)
 
@@ -81,7 +73,6 @@ def align(arr: NDArray[np.float64],
           val: np.float64
           ) -> np.int64:
     return np.argmin(np.abs(arr - val))
-
 def experiment_window(mission_control_data: NDArray[bool], 
                       t_mission_control: NDArray[np.float32]
                       ) -> tuple[np.float64, np.float64]:
@@ -109,7 +100,7 @@ def create_cc_env(cc_parameters: coverage_control.Parameters,
                 world_idf,
                 robot_poses)
     except Exception as e:
-        printR(f"Failed to create CoverageSystem")
+        printC(f"Failed to create CoverageSystem", RED)
         return None
     return cc_env
 
@@ -117,18 +108,16 @@ def create_pose_file(robot_poses: NDArray[np.float32],
                      bag_name: str
                      ):
     fp = f"/workspace/px4_multi_sim/robot_poses_{bag_name}.sh"
-    printB(f"Creating pose file for sim testing at {fp} ...", end="")
+    printC(f"Creating pose file for sim testing at {fp} ...", BLUE, end="")
     with open(fp, "w") as f:
         for i in range(robot_poses.shape[0]):
             f.write(f"{i} {robot_poses[i,0]} {robot_poses[i,1]} 1.5708\n")
         f.close()
-    printG("Done!")
-        
-def printR(msg: str, end="\n", flush=True):
-    print(RED + f"{msg}" + RESET, end=end, flush=flush)
-def printG(msg: str, end="\n", flush=True):
-    print(GREEN + f"{msg}" + RESET, end=end, flush=flush)
-def printB(msg: str, end="\n", flush=True):
-    print(BLUE + f"{msg}" + RESET, end=end, flush=flush)
-def printY(msg: str, end="\n", flush=True):
-    print(YELLOW + f"{msg}" + RESET, end=end, flush=flush)
+    printC("Done!", GREEN)
+
+def printC(msg: str, 
+           COLOR: str,
+           end: str = "\n",
+           flush: bool = True
+           ):
+    print(COLOR + msg + RESET, end=end, flush=flush)

@@ -3,7 +3,7 @@ import pdb
 import os
 from os.path import isdir
 import bag_utils as utils
-from bag_utils import printR, printG, printB, printY
+from bag_utils import printC
 import re
 import numpy as np
 from numpy.typing import NDArray
@@ -82,13 +82,13 @@ def plot_cost(normalized_cost_arr: NDArray[np.float32],
     fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
 
     save_fn = save_dir + "/" + bag_name + "_cost.png"
-    printB(f"Plotting and saving to {save_fn}...", end="")
+    printC(f"Plotting and saving to {save_fn}...", BLUE, end="")
     ax.plot(t_fine, normalized_cost_arr, color=colors[0])
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Normalized Coverage Cost')
     plt.tight_layout()
     utils.save_fig(fig, save_dir, bag_name + "_cost")
-    printG("Done!")
+    printC("Done!", GREEN)
 
 def plot_trajectory(robot_poses: list[coverage_control.PointVector],
                     save_dir: str,
@@ -97,7 +97,7 @@ def plot_trajectory(robot_poses: list[coverage_control.PointVector],
                     ):
     fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
     save_fn = save_dir + "/" + bag_name + "_traj.png"
-    print(BLUE + f"Plotting the trajectories and saving to {save_fn}..." + RESET, end="")
+    printC(f"Plotting the trajectories and saving to {save_fn}...", BLUE, end="")
     # Get the trajectories
     total_steps = len(robot_poses)
     for i in range(0, len(robot_poses[0])):
@@ -127,7 +127,7 @@ def plot_trajectory(robot_poses: list[coverage_control.PointVector],
     ax.set_ylim([0,512])
     plt.tight_layout
     utils.save_fig(fig, save_dir, bag_name+"_traj")
-    print(GREEN + "Done!" + RESET)
+    printC("Done!", GREEN)
 
 def plot_system_maps(system_maps: NDArray[np.float32],
                      poses: NDArray[np.float32],
@@ -144,13 +144,13 @@ def plot_system_maps(system_maps: NDArray[np.float32],
     if not os.path.isdir(tmp_dir):
         os.makedirs(tmp_dir)
 
-    print(BLUE + f"Plotting the system maps and saving to {tmp_dir}..." + RESET, end="")
+    printC(f"Plotting the system maps and saving to {tmp_dir}...", BLUE, end="")
     for i in range(system_maps.shape[0]):
         fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
         if global_map is not None:
             system_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), system_maps[i])
-            ax.imshow(global_map, origin="lower", cmap="gray_r", alpha=0.25)
-            ax.imshow(system_map_masked, origin="lower", cmap=color_scheme["idf"])
+            ax.imshow(global_map, origin="lower", cmap="gray_r", alpha=0.5)
+            ax.imshow(system_map_masked, origin="lower", cmap=color_scheme["idf"], vmin=0.0, vmax=1.0)
         else:
             ax.imshow(system_maps[i], origin="lower", cmap=color_scheme["idf"]) #pyright: ignore
         ax.scatter(poses[i,:,0], poses[i,:,1], marker=color_scheme["robot_marker"], color=color_scheme["robot"])
@@ -164,31 +164,44 @@ def plot_system_maps(system_maps: NDArray[np.float32],
 
         utils.save_fig(fig, tmp_dir, f"{t_coarse[i]:.2f}_{i:06d}") 
         plt.close()
-    print(GREEN + "Done!" + RESET)
+    printC("Done!", GREEN)
 
 def plot_global_map(global_map: NDArray[np.float32],
                     save_dir: str,
-                    filename: str
+                    filename: str,
+                    color_scheme: dict,
+                    robot_poses: NDArray[np.float32] | None = None,
+                    en_axis_labels: bool = False,
+                    en_grid: bool = False,
+                    alt_marker_colors: list[float] | None = None # used if plotting multiple bags
                     ):
     save_fn = save_dir + "/" + filename + ".png"
-    print(BLUE + f"Plotting the global map and saving to {save_fn}..." + RESET, end="", flush=True)
-    plot_map(global_map, save_dir, filename)
-    print(GREEN + "Done!" + RESET)
-    plt.close()
-
-def plot_map(map: NDArray[np.float32],
-             save_dir: str,
-             filename: str
-             ):
+    printC(f"Plotting the global map and saving to {save_fn}...", BLUE, end="", flush=True)
     fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
-    ax.imshow(map, origin="lower")
-    ax.set_xlabel("x (m)")
-    ax.set_ylabel("y (m)")
+    ax.imshow(global_map, origin="lower", cmap=color_scheme["idf"], vmin=0.0, vmax=1.0)
+    if robot_poses is not None:
+        for i in range(robot_poses.shape[0]):
+            if alt_marker_colors is not None and robot_poses.shape[0] > 1:
+                color = alt_marker_colors[i % len(alt_marker_colors)]
+            else:
+                color = color_scheme["robot"]
+            ax.scatter(robot_poses[:,0], robot_poses[:,1], marker=color_scheme["robot_marker"], color=color)
+    if en_axis_labels:
+        ax.set_xlabel("x (m)") 
+        ax.set_ylabel("y (m)")
+    else:
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+    ax.grid(visible=en_grid)
+
     utils.save_fig(fig, save_dir, filename) 
+    plt.close()
+    printC("Done!", GREEN)
 
 def plot_bag(bag_data: ProcessedBag,
              save_dir: str,
              color_choice: str,
+             global_map_time: float = 60.
              ):
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -197,7 +210,14 @@ def plot_bag(bag_data: ProcessedBag,
 
     plot_cost(bag_data.normalized_cost, bag_data.t_fine, save_dir, bag_data.bag_name, colors)
     #plot_trajectory(robot_poses, save_dir, bag_name, colors)
-    plot_global_map(bag_data.global_map, save_dir, bag_data.bag_name + "_global")
+
+    global_map_idx = np.argmin(np.abs(bag_data.t_coarse - global_map_time))
+    plot_global_map(bag_data.global_map,
+                    save_dir,
+                    bag_data.bag_name + f"_global_{global_map_time}",
+                    map_colors[color_choice],
+                    bag_data.robot_poses[global_map_idx]
+                    )
     plot_system_maps(bag_data.system_maps,
                      bag_data.robot_poses,
                      bag_data.t_coarse,
@@ -207,10 +227,10 @@ def plot_bag(bag_data: ProcessedBag,
                      bag_data.global_map
                      )
 
-def plot_combined(bag_data_arr: list[ProcessedBag],
-                  save_dir: str,
-                  color_choice: str
-                  ):
+def plot_combined_cost(bag_data_arr: list[ProcessedBag],
+                       save_dir: str,
+                       color_choice: str
+                      ):
 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -219,7 +239,7 @@ def plot_combined(bag_data_arr: list[ProcessedBag],
 
     fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
     save_fn = save_dir + "/" + "combined_cost.png"
-    printB(f"Plotting and saving to {save_fn}...", end="")
+    printC(f"Plotting and saving to {save_fn}...", GREEN, end="")
     for i, data in enumerate(bag_data_arr):
         ax.plot(data.t_fine, data.normalized_cost, color=colors[i % len(colors)], label=data.bag_name)
     ax.set_xlabel('Time (s)')
@@ -227,12 +247,34 @@ def plot_combined(bag_data_arr: list[ProcessedBag],
     plt.legend()
     plt.tight_layout()
     utils.save_fig(fig, save_dir, "combined_cost")
-    printG("Done!")
-
-    
-
-    
+    printC("Done!", GREEN)
+    plt.close()
 
 
+def plot_combined_global_map(bag_data_arr: list[ProcessedBag],
+                             save_dir: str,
+                             color_choice: str
+                            ):
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    colors = seaborn_colors(catpuccin_colors)
+    set_theme()
 
+    fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
+    times_to_plot = [0.0, 60.0]
 
+    for t in times_to_plot:
+        robot_poses = []
+        for bag_data in bag_data_arr:
+            pose_idx = np.argmin(np.abs(bag_data.t_coarse - t))
+            robot_poses.append(bag_data.robot_poses[pose_idx])
+
+        printC(f"Plotting the combined global_map for t=${t}s...", BLUE, end="")
+        plot_global_map(bag_data_arr[0].global_map,
+                        save_dir,
+                        f"global_combined_{t}",
+                        map_colors[color_choice],
+                        robot_poses,
+                        alt_marker_colors=colors
+                        )
+        printC("Done!", GREEN)

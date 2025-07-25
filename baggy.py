@@ -5,7 +5,7 @@ import argparse
 import os
 import pickle
 from colors import *
-from bag_utils import printR, printB
+from bag_utils import printC
 
 import pdb
 
@@ -26,34 +26,40 @@ def list_directories(dir: str,
     elif single:
         filtered_bags = [single]
         if not os.path.isdir(dir + "/" + single):
-            printR("Error: The specified path is not a directory.")
+            printC("Error: The specified path is not a directory.", RED)
         return filtered_bags
     else:
-        printR("Error: missing at least one input (all, match, single) when listing directories.\
-                Exiting...")
+        printC("Error: missing at least one input (all, match, single) when listing directories.\
+                Exiting...", RED)
         exit(1)
 
 def load_bag(filepath: str):
     with open(filepath, "rb") as f:
-        bag_dict = pickle.load(f)
-    return bag_dict
+        bag = pickle.load(f)
+    return bag
 
 def main(args):
     bags = list_directories(args.dir, args.all, args.match, args.single)
     data = []
     for b in bags:
-        printR(f"Begin {b}") 
+        printC(f"Begin {b}", RED) 
         if args.command == "extract":
             filepath = args.dir + "/" + b
-            bag_reader.extract_bag(filepath)
-        elif args.command == "plot":
-            filepath = args.dir + "/" + b + "/" + b + ".pkl" # pkl file shares name of bag dir
+            bag_dict = bag_reader.extract_bag(filepath, save=True)
+        elif args.command == "process":
+            filedir = args.dir + "/" + b 
+            filepath = filedir + "/" + b + ".pkl" # pkl file shares name of bag dir
             bag_dict = load_bag(filepath)
-            data.append(bag_process.process_bag(bag_dict, args.params, args.idf, args.output, b))
+            bag_process.process_bag(bag_dict, args.params, args.idf, filedir, b, save=True)
+        elif args.command == "plot":
+            filepath = args.dir + "/" + b + "/" + b + "_processed.pkl" # pkl file shares name of bag dir
+            bag_data = load_bag(filepath)
+            data.append(bag_data)
             if not args.combine:
                 bag_plotter.plot_bag(data[-1], args.output, args.color)
     if args.command == "plot" and args.combine:
-        bag_plotter.plot_combined(data, args.output, args.color)
+        bag_plotter.plot_combined_cost(data, args.output, args.color)
+        bag_plotter.plot_combined_global_map(data, args.output, args.color)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="bag_plotter.py",
@@ -77,19 +83,32 @@ if __name__ == "__main__":
     parser_ext_xor.add_argument("-s", "--single", type=str, help="Path to a specific bag file")
 
     # Calculate Cost
-    parser_cost = subparsers.add_parser("cost", help="Calculate the raw coverage cost of the bag file(s)")
+    parser_cost = subparsers.add_parser("process", help="Process the raw bag output calculating coverage cost and maps")
     parser_cost.add_argument("-d",
                              "--dir",
                              type=str,
                              default="/workspace/bags",
                              help="Directory containing bag files. default: /workspace/bags"
                              )
-    parser_cost.add_argument("-c",
-                             "--config",
+    parser_cost.add_argument("-o",
+                             "--output",
                              type=str,
-                             default="/workspaces/configs/penn_envs",
-                             help="Directory containing the IDF enviornment files.\
-                                     default: /workspace/configs/penn_envs"
+                             default="/workspace/figures",
+                             help="Output directory for generated figures. default: /workspace/figures"
+                             )
+    parser_cost.add_argument("-p",
+                             "--params",
+                             type=str,
+                             default="/workspace/pt/models_256/coverage_control_params_512.toml",
+                             help="Coverage control parameters file.\
+                                     default: /workspace/pt/models_256/coverage_control_params_512.toml"
+                             )
+    parser_cost.add_argument("-i",
+                             "--idf",
+                             type=str,
+                             default="/workspace/configs/penn_envs/10r_2.env",
+                             help="Importance density function file.\
+                                     default: /workspace/configs/penn_envs/10r_2.env"
                              )
     parser_cost_xor = parser_cost.add_mutually_exclusive_group(required=True)
     parser_cost_xor.add_argument("-a", "--all", action="store_true", help="Plot bags in the given directory")

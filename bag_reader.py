@@ -9,6 +9,7 @@ import pdb
 import sys
 import pickle
 from colors import *
+from bag_utils import printC
 
 
 typestore = get_typestore(Stores.ROS2_JAZZY)
@@ -101,8 +102,8 @@ def get_all_robot_positions(msg) -> coverage_control.PointVector:
         positions.append([msg.positions[i], msg.positions[i + 1]])
     return np.array((positions))
 
-def extract_bag(filepath: str):
-    print(BLUE + f"Reading from {filepath}" + RESET)
+def extract_bag(filepath: str, save: bool = True) -> dict:
+    printC(f"Reading from {filepath}", BLUE)
     if filepath[-1] == "/": # Account for trailing slash
         filepath = filepath[:-1]
     split = filepath.split("/")
@@ -116,7 +117,7 @@ def extract_bag(filepath: str):
             typs.update(get_types_from_msg(conn.msgdef.data, conn.msgtype))
         typestore.register(typs)
 
-        print(GREEN + "Found the following topics:" + RESET)
+        printC("Found the following topics:", BLUE)
         hline()
         for connection in reader.connections:
             print(connection.topic, connection.msgtype)
@@ -146,25 +147,11 @@ def extract_bag(filepath: str):
                 table[namespace][topic_name].update(entry)
         elapsed_time = (end_time - start_time) / 1e9
         table["total_time"] = elapsed_time
-        print(GREEN + "\nDone!" + RESET)
-        print(RED + f"Elapsed time {elapsed_time}s" + RESET)
-        print(BLUE + f"Saving to {save_path}..." + RESET, end="")
-        with open(save_path, "wb") as f:
-            pickle.dump(table, f, protocol=pickle.HIGHEST_PROTOCOL)
-        print(GREEN + "Done!" + RESET)
-
-if __name__ ==  "__main__":
-    parser = argparse.ArgumentParser(
-                prog="bag_reader",
-                description="Extracts results from an LPAC experiment ROS2 bag file"
-            )
-    parser.add_argument("filepath")
-    args = parser.parse_args()
-    extract_bag(args.filepath)
-
-    #filepath = args.filepath
-    #if filepath[-1] == "/": # Account for trailing slash
-    #    filepath = filepath[:-1]
-    #split = filepath.split("/")
-    #filename = split[-1] + ".pkl"
-    #test_loading(filepath, filename)
+        printC("\nDone!", GREEN)
+        printC(f"Elapsed time {elapsed_time}s", RED)
+        if save:
+            printC(f"Saving to {save_path}...", BLUE, end="")
+            with open(save_path, "wb") as f:
+                pickle.dump(table, f, protocol=pickle.HIGHEST_PROTOCOL)
+            printC("Done!", GREEN)
+        return table

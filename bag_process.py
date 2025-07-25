@@ -1,10 +1,11 @@
 import pdb
+import pickle
 from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 import coverage_control
 import bag_utils as utils
-from bag_utils import printR, printG, printB, printY
+from bag_utils import printC
 from colors import *
 
 @dataclass
@@ -34,9 +35,9 @@ def process_bag(bag_dict: dict,
                 params_file: str,
                 idf_file: str,
                 save_dir: str,
-                bag_name: str
+                bag_name: str,
+                save: bool = True
                 ):
-
     cc_parameters = coverage_control.Parameters(params_file)
     total_time = bag_dict["total_time"]
 
@@ -55,32 +56,38 @@ def process_bag(bag_dict: dict,
     system_maps_upscaled = system_maps_upscaled[maps_start:maps_stop]
     t_coarse = t_system_maps[maps_start:maps_stop]
 
-    # Create a mapping of poses to system_maps
     X, Y = np.meshgrid(t_fine, t_coarse) 
     pose_indices = np.argmin(np.abs(X - Y), axis=1)
     poses_for_maps = np.array(robot_poses)[pose_indices]
 
-    # Used for simulating with the same start conditions
+    # Creates a file containing start positions of the robots from the current bag.
+    # Allows future simulation runs to be initialized with the same start positions.
     utils.create_pose_file(poses_for_maps[0], bag_name)
 
     cc_env = utils.create_cc_env(cc_parameters, idf_file, robot_poses[0])
     if cc_env is None:
-        printR("Exiting...")
+        printC("Exiting...", RED)
         exit(1)
 
-    printB(f"Evaluating coverage cost for {bag_name}...", end="")
+    printC(f"Evaluating coverage cost for {bag_name}...", BLUE, end="")
     normalized_cost = calc_cost(cc_env, robot_poses)
-    printG("Done!")
+    printC("Done!", GREEN)
 
     t_coarse -= t_coarse[0]
     t_fine -= t_fine[0]
 
-    return ProcessedBag(bag_name, 
-                        poses_for_maps,
-                        normalized_cost,
-                        global_map_upscaled,
-                        system_maps_upscaled,
-                        t_coarse,
-                        t_fine
-                        )
-
+    pb = ProcessedBag(bag_name, 
+                      poses_for_maps,
+                      normalized_cost,
+                      global_map_upscaled,
+                      system_maps_upscaled,
+                      t_coarse,
+                      t_fine
+                      )
+    if save:
+        save_path = save_dir + "/" + bag_name + "_processed.pkl"
+        printC(f"Saving to {save_path}...", BLUE, end="")
+        with open(save_path, "wb") as f:
+            pickle.dump(pb, f, protocol=pickle.HIGHEST_PROTOCOL)
+        printC("Done!", GREEN)
+    return pb
