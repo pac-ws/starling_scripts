@@ -5,6 +5,7 @@ import argparse
 import os
 import pickle
 from colors import *
+from bag_utils import printR, printB
 
 import pdb
 
@@ -25,12 +26,12 @@ def list_directories(dir: str,
     elif single:
         filtered_bags = [single]
         if not os.path.isdir(dir + "/" + single):
-            print(RED + "Error: The specified path is not a directory." + RESET)
+            printR("Error: The specified path is not a directory.")
         return filtered_bags
     else:
-        print(RED + "Error: missing at least one input (all, match, single) when listing directories.\
-                Exiting..." + RESET)
-        exit(0)
+        printR("Error: missing at least one input (all, match, single) when listing directories.\
+                Exiting...")
+        exit(1)
 
 def load_bag(filepath: str):
     with open(filepath, "rb") as f:
@@ -41,6 +42,7 @@ def main(args):
     bags = list_directories(args.dir, args.all, args.match, args.single)
     data = []
     for b in bags:
+        printR(f"Begin {b}") 
         if args.command == "extract":
             filepath = args.dir + "/" + b
             bag_reader.extract_bag(filepath)
@@ -48,10 +50,9 @@ def main(args):
             filepath = args.dir + "/" + b + "/" + b + ".pkl" # pkl file shares name of bag dir
             bag_dict = load_bag(filepath)
             data.append(bag_process.process_bag(bag_dict, args.params, args.idf, args.output, b))
-            if args.single:
-                bag_plotter.plot_bag(data[0], args.output, args.color)
-                return
-    if args.command == "plot":
+            if not args.combine:
+                bag_plotter.plot_bag(data[-1], args.output, args.color)
+    if args.command == "plot" and args.combine:
         bag_plotter.plot_combined(data, args.output, args.color)
 
 if __name__ == "__main__":

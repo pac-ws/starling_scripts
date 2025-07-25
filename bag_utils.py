@@ -1,5 +1,6 @@
 import pdb
 import os
+import re
 import numpy as np
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
@@ -26,8 +27,22 @@ def get_robot_poses(bag_dict: dict) -> tuple[list[coverage_control.PointVector],
     all_pose_data = bag_dict["sim"]["all_robot_positions"]
     t_pos_arr = np.array(list(all_pose_data.keys()))
     t_pos_arr = np.sort(t_pos_arr)
-    data_vec = [coverage_control.PointVector(np.clip(all_pose_data[t], 1, 512)) for t in t_pos_arr] # TODO BAD!
+    data_vec = [coverage_control.PointVector(np.clip(all_pose_data[t], 1, 511)) for t in t_pos_arr] # TODO: BAD!
     return data_vec, t_pos_arr
+
+def get_individual_poses_at_start(bag_dict: dict,
+                                  start_time: np.float64
+                                  ) -> dict:
+    # Extract the pose from each robot's namespace
+    start_pose_dict = {}
+    for k, v in bag_dict.items():
+        if re.match(k, r"r\d+"):
+            pose_dict = v["pose"]
+            t_pos_arr = np.array(list(pose_dict.keys()))
+            start_idx = np.argmin(np.abs(t_pos_arr - start_time))
+            start_pose = np.clip(pose_dict[t_pos_arr[start_idx]], 1, 511)
+            start_pose_dict[k] = start_pose
+    return start_pose_dict
 
 def get_mission_control(bag_dict: dict) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
     mission_control_data = np.array(list(bag_dict["mission_control"]["mission_control"].values()))
@@ -73,8 +88,9 @@ def experiment_window(mission_control_data: NDArray[bool],
     takeoff = mission_control_data[:,2]
     landing = mission_control_data[:,3]
 
-    idx_start = np.argmax(np.diff(takeoff, n=1))
-    idx_stop = np.argmax(np.diff(landing, n=1))
+    idx_start = np.argmax(np.diff(takeoff.astype(int)) == 1)
+    idx_stop = np.argmax(np.diff(landing.astype(int)) == 1)
+    assert idx_start < idx_stop
 
     start_time = t_mission_control[idx_start] / 1e9
     stop_time = t_mission_control[idx_stop] / 1e9

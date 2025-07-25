@@ -198,14 +198,14 @@ def plot_bag(bag_data: ProcessedBag,
     plot_cost(bag_data.normalized_cost, bag_data.t_fine, save_dir, bag_data.bag_name, colors)
     #plot_trajectory(robot_poses, save_dir, bag_name, colors)
     plot_global_map(bag_data.global_map, save_dir, bag_data.bag_name + "_global")
-    #plot_system_maps(bag_data.system_maps,
-    #                 bag_data.robot_poses,
-    #                 bag_data.t_coarse,
-    #                 save_dir,
-    #                 bag_data.bag_name,
-    #                 map_colors[color_choice],
-    #                 bag_data.global_map
-    #                 )
+    plot_system_maps(bag_data.system_maps,
+                     bag_data.robot_poses,
+                     bag_data.t_coarse,
+                     save_dir,
+                     bag_data.bag_name,
+                     map_colors[color_choice],
+                     bag_data.global_map
+                     )
 
 def plot_combined(bag_data_arr: list[ProcessedBag],
                   save_dir: str,
@@ -220,8 +220,8 @@ def plot_combined(bag_data_arr: list[ProcessedBag],
     fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
     save_fn = save_dir + "/" + "combined_cost.png"
     printB(f"Plotting and saving to {save_fn}...", end="")
-    for data in bag_data_arr:
-        ax.plot(data.t_fine, data.normalized_cost, color=colors[0], label=data.bag_name)
+    for i, data in enumerate(bag_data_arr):
+        ax.plot(data.t_fine, data.normalized_cost, color=colors[i % len(colors)], label=data.bag_name)
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Normalized Coverage Cost')
     plt.legend()
