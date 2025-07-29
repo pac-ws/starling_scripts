@@ -1,5 +1,6 @@
 # pyright: reportAttributeAccessIssue=false
 import pdb
+import shutil
 import os
 from os.path import isdir
 import bag_utils as utils
@@ -20,6 +21,7 @@ ONE_COLUMN_WIDTH = 3.5
 TWO_COLUMN_WIDTH = 7.16
 LEGEND_WIDTH = 0.5
 FIGURE_HEIGHT = 3.5
+FIGURE_HEIGHT_FLAT = 2
 
 def seaborn_colors(colors : list[str]) -> list[[float]]:
     sns_colors = []
@@ -78,7 +80,8 @@ def plot_cost(normalized_cost_arr: NDArray[np.float32],
               t_fine: NDArray[np.float32],
               save_dir: str,
               bag_name: str,
-              colors: list[str]
+              colors: list[str],
+              generate_video: bool = True
               ):
     fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
 
@@ -90,6 +93,32 @@ def plot_cost(normalized_cost_arr: NDArray[np.float32],
     plt.tight_layout()
     utils.save_fig(fig, save_dir, bag_name + "_cost")
     printC("Done!", GREEN)
+    
+    if generate_video:
+        tmp_dir = save_dir + f"/{bag_name}_cost_tmp"
+        if not os.path.isdir(tmp_dir):
+            os.makedirs(tmp_dir)
+
+        assert t_fine.shape[0] > 2
+        fps = 1 / np.mean(np.diff(t_fine))
+        for i in range(t_fine.shape[0]):
+            printC(f"Plotting cost video frames ({i:06d} / {t_fine.shape[0]:06d})...", BLUE, end="\r", flush=True)
+            fig, ax = plt.subplots(figsize=(TWO_COLUMN_WIDTH, FIGURE_HEIGHT_FLAT))
+            ax.plot(t_fine[:i], normalized_cost_arr[:i], color=colors[3]) # TODO magic number
+            ax.plot(t_fine[i], normalized_cost_arr[i], color=colors[3], marker="o", markersize=3)
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Normalized Coverage Cost')
+            plt.tight_layout()
+            utils.save_fig(fig, tmp_dir, f"{t_fine[i]:.2f}_{i:06d}") 
+            plt.close()
+        printC("\nDone!", GREEN)
+
+        printC(f"Generating video...", BLUE, end="")
+        create_video(tmp_dir, save_dir + "/" + bag_name + "_cost.mp4", fps=fps)
+        printC("Done!", GREEN)
+
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
 
 def plot_trajectory(robot_poses: list[coverage_control.PointVector],
                     save_dir: str,
@@ -139,7 +168,8 @@ def plot_system_maps(system_maps: NDArray[np.float32],
                      global_map: NDArray[np.float32] | None = None,
                      en_axis_labels = False,
                      en_grid = False,
-                     generate_video: bool = True
+                     generate_video: bool = True,
+                     save_times: list[float] = [0., 15., 30., 45., 60.]
                      ):
 
     tmp_dir = save_dir + f"/{bag_name}_tmp"
@@ -165,18 +195,23 @@ def plot_system_maps(system_maps: NDArray[np.float32],
         ax.grid(visible=en_grid)
 
         utils.save_fig(fig, tmp_dir, f"{t_coarse[i]:.2f}_{i:06d}") 
+        if t_coarse[i] in save_times:
+            utils.save_fig(fig, save_dir, f"{bag_name}_sys_{t_coarse[i]:.2f}") 
         plt.close()
     printC("Done!", GREEN)
 
     if generate_video:
         printC(f"Generating video and saving in {save_dir}...", BLUE, end="")
-        create_sys_map_video(tmp_dir, save_dir + "/" + bag_name + "_sys.mp4")
+        create_video(tmp_dir, save_dir + "/" + bag_name + "_sys.mp4")
         printC("Done!", GREEN)
 
-@staticmethod
-def create_sys_map_video(images_path, video_name, fps=10):
+def img_num_key(s):
+    match = re.search(r"(\d+)(?=\D*$)", s) # use last integer in fn for sorting
+    return int(match.group(1)) if match else -1
+
+def create_video(images_path, video_name, fps=10):
     images = [img for img in os.listdir(images_path) if img.endswith(".png")]
-    images.sort()
+    images = sorted(images, key=img_num_key)
     frame = cv2.imread(os.path.join(images_path, images[0]))
     height, width, layers = frame.shape
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  
@@ -238,6 +273,7 @@ def plot_bag(bag_data: ProcessedBag,
                     map_colors[color_choice],
                     bag_data.robot_poses[global_map_idx]
                     )
+    return
     plot_system_maps(bag_data.system_maps,
                      bag_data.robot_poses,
                      bag_data.t_coarse,
