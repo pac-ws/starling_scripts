@@ -9,6 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 import coverage_control
 import matplotlib.pyplot as plt
+import cv2
 import seaborn as sns
 import seaborn.objects as so
 from seaborn import plotting_context, axes_style
@@ -137,7 +138,8 @@ def plot_system_maps(system_maps: NDArray[np.float32],
                      color_scheme: dict,
                      global_map: NDArray[np.float32] | None = None,
                      en_axis_labels = False,
-                     en_grid = False
+                     en_grid = False,
+                     generate_video: bool = True
                      ):
 
     tmp_dir = save_dir + f"/{bag_name}_tmp"
@@ -165,6 +167,24 @@ def plot_system_maps(system_maps: NDArray[np.float32],
         utils.save_fig(fig, tmp_dir, f"{t_coarse[i]:.2f}_{i:06d}") 
         plt.close()
     printC("Done!", GREEN)
+
+    if generate_video:
+        printC(f"Generating video and saving in {save_dir}...", BLUE, end="")
+        create_sys_map_video(tmp_dir, save_dir + "/" + bag_name + "_sys.mp4")
+        printC("Done!", GREEN)
+
+@staticmethod
+def create_sys_map_video(images_path, video_name, fps=10):
+    images = [img for img in os.listdir(images_path) if img.endswith(".png")]
+    images.sort()
+    frame = cv2.imread(os.path.join(images_path, images[0]))
+    height, width, layers = frame.shape
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  
+    video = cv2.VideoWriter(video_name, fourcc, fps, (width, height))
+    for image in images:
+        video.write(cv2.imread(os.path.join(images_path, image)))
+    cv2.destroyAllWindows()
+    video.release()
 
 def plot_global_map(global_map: NDArray[np.float32],
                     save_dir: str,
