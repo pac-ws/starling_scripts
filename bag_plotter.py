@@ -75,23 +75,75 @@ def so_theme():
             "pdf.fonttype": 42,
         }
     )
+def plot_cost_helper(figsize: tuple[float, float],
+                trace: tuple[NDArray[np.float32], NDArray[np.float32]],
+                point: tuple[np.float32, np.float32] | None,
+                save_dir: str,
+                filename: str,
+                color: str,
+                marker: str,
+                markersize: int,
+                x_label: str,
+                y_label: str,
+                ):
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.plot(trace[0], trace[1], color=color) 
+    if point is not None:
+        ax.plot(point[0], point[1], color=color, marker=marker, markersize=markersize)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    plt.tight_layout()
+    utils.save_fig(fig, save_dir, filename)
+    plt.close()
 
 def plot_cost(normalized_cost_arr: NDArray[np.float32],
               t_fine: NDArray[np.float32],
               save_dir: str,
               bag_name: str,
               colors: list[str],
-              generate_video: bool = True
+              generate_video: bool = True,
+              save_times: list[float] = [0., 15., 30., 45., 60.]
               ):
-    fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
 
-    save_fn = save_dir + "/" + bag_name + "_cost.png"
-    printC(f"Plotting and saving to {save_fn}...", BLUE, end="")
-    ax.plot(t_fine, normalized_cost_arr, color=colors[0])
-    ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Normalized Coverage Cost')
-    plt.tight_layout()
-    utils.save_fig(fig, save_dir, bag_name + "_cost")
+    printC(f"Plotting the cost function for all times...", BLUE, end="")
+    plot_cost_helper((ONE_COLUMN_WIDTH, FIGURE_HEIGHT),
+                trace = (t_fine, normalized_cost_arr),
+                point = None,
+                save_dir = save_dir,
+                filename= f"{bag_name}_cost",
+                color="green",
+                marker="o",
+                markersize=3,
+                x_label="Time (s)",
+                y_label="Normalized Coverage Cost"
+                )
+    printC("Done!", GREEN)
+
+    printC(f"Plotting cost up to specific times from list {save_times}...", BLUE, end="")
+    for time in save_times:
+        i = np.argmin(np.abs(t_fine - time))
+        plot_cost_helper((ONE_COLUMN_WIDTH, FIGURE_HEIGHT),
+                    trace = (t_fine[:i], normalized_cost_arr[:i]),
+                    point = (t_fine[i], normalized_cost_arr[i]),
+                    save_dir = save_dir,
+                    filename= f"{bag_name}_cost_compact_{time}",
+                    color="green",
+                    marker="o",
+                    markersize=3,
+                    x_label="Time (s)",
+                    y_label="Normalized Coverage Cost"
+                    )
+        plot_cost_helper((TWO_COLUMN_WIDTH, FIGURE_HEIGHT_FLAT),
+                    trace = (t_fine[:i], normalized_cost_arr[:i]),
+                    point = (t_fine[i], normalized_cost_arr[i]),
+                    save_dir = save_dir,
+                    filename= f"{bag_name}_cost_wide_{time}",
+                    color="green",
+                    marker="o",
+                    markersize=3,
+                    x_label="Time (s)",
+                    y_label="Cost"
+                    )
     printC("Done!", GREEN)
     
     if generate_video:
@@ -103,14 +155,17 @@ def plot_cost(normalized_cost_arr: NDArray[np.float32],
         fps = 1 / np.mean(np.diff(t_fine))
         for i in range(t_fine.shape[0]):
             printC(f"Plotting cost video frames ({i:06d} / {t_fine.shape[0]:06d})...", BLUE, end="\r", flush=True)
-            fig, ax = plt.subplots(figsize=(TWO_COLUMN_WIDTH, FIGURE_HEIGHT_FLAT))
-            ax.plot(t_fine[:i], normalized_cost_arr[:i], color=colors[3]) # TODO magic number
-            ax.plot(t_fine[i], normalized_cost_arr[i], color=colors[3], marker="o", markersize=3)
-            ax.set_xlabel('Time (s)')
-            ax.set_ylabel('Normalized Coverage Cost')
-            plt.tight_layout()
-            utils.save_fig(fig, tmp_dir, f"{t_fine[i]:.2f}_{i:06d}") 
-            plt.close()
+            plot_cost_helper((TWO_COLUMN_WIDTH, FIGURE_HEIGHT_FLAT),
+                        trace = (t_fine[:i], normalized_cost_arr[:i]),
+                        point = (t_fine[i], normalized_cost_arr[i]),
+                        save_dir = tmp_dir,
+                        filename= f"{t_fine[i]:.2f}_{i:06d}",
+                        color="green",
+                        marker="o",
+                        markersize=3,
+                        x_label="Time (s)",
+                        y_label="Cost"
+                        )
         printC("\nDone!", GREEN)
 
         printC(f"Generating video...", BLUE, end="")
@@ -176,8 +231,8 @@ def plot_system_maps(system_maps: NDArray[np.float32],
     if not os.path.isdir(tmp_dir):
         os.makedirs(tmp_dir)
 
-    printC(f"Plotting the system maps and saving to {tmp_dir}...", BLUE, end="")
     for i in range(system_maps.shape[0]):
+        printC(f"Plotting map video frames ({i:06d} / {system_maps.shape[0]:06d})...", BLUE, end="\r", flush=True)
         fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
         if global_map is not None:
             system_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), system_maps[i])
@@ -194,11 +249,20 @@ def plot_system_maps(system_maps: NDArray[np.float32],
             ax.get_yaxis().set_visible(False)
         ax.grid(visible=en_grid)
 
+        # For repeatability experiments
+        if bag_name in hacky_color_map:
+            for spine in ax.spines.values():
+                # TODO terrible
+                l = [hacky_color_map[bag_name]]
+                c_sns = seaborn_colors(l)
+                spine.set_edgecolor(c_sns[0])
+                spine.set_linewidth(4)
+
         utils.save_fig(fig, tmp_dir, f"{t_coarse[i]:.2f}_{i:06d}") 
         if t_coarse[i] in save_times:
             utils.save_fig(fig, save_dir, f"{bag_name}_sys_{t_coarse[i]:.2f}") 
         plt.close()
-    printC("Done!", GREEN)
+    printC("\nDone!", GREEN)
 
     if generate_video:
         printC(f"Generating video and saving in {save_dir}...", BLUE, end="")
@@ -235,12 +299,14 @@ def plot_global_map(global_map: NDArray[np.float32],
     fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
     ax.imshow(global_map, origin="lower", cmap=color_scheme["idf"], vmin=0.0, vmax=1.0)
     if robot_poses is not None:
+        if len(robot_poses.shape) == 2:
+            robot_poses = np.expand_dims(robot_poses, axis=0)
         for i in range(robot_poses.shape[0]):
             if alt_marker_colors is not None and robot_poses.shape[0] > 1:
                 color = alt_marker_colors[i % len(alt_marker_colors)]
             else:
                 color = color_scheme["robot"]
-            ax.scatter(robot_poses[:,0], robot_poses[:,1], marker=color_scheme["robot_marker"], color=color)
+            ax.scatter(robot_poses[i,:,0], robot_poses[i,:,1], marker=color_scheme["robot_marker"], color=color)
     if en_axis_labels:
         ax.set_xlabel("x (m)") 
         ax.set_ylabel("y (m)")
@@ -263,7 +329,7 @@ def plot_bag(bag_data: ProcessedBag,
     colors = seaborn_colors(catpuccin_colors)
     set_theme()
 
-    plot_cost(bag_data.normalized_cost, bag_data.t_fine, save_dir, bag_data.bag_name, colors)
+    #plot_cost(bag_data.normalized_cost, bag_data.t_fine, save_dir, bag_data.bag_name, colors)
     #plot_trajectory(robot_poses, save_dir, bag_name, colors)
 
     global_map_idx = np.argmin(np.abs(bag_data.t_coarse - global_map_time))
@@ -273,7 +339,6 @@ def plot_bag(bag_data: ProcessedBag,
                     map_colors[color_choice],
                     bag_data.robot_poses[global_map_idx]
                     )
-    return
     plot_system_maps(bag_data.system_maps,
                      bag_data.robot_poses,
                      bag_data.t_coarse,
@@ -285,9 +350,9 @@ def plot_bag(bag_data: ProcessedBag,
 
 def plot_combined_cost(bag_data_arr: list[ProcessedBag],
                        save_dir: str,
-                       color_choice: str
+                       color_choice: str,
+                       generate_video: bool = True
                       ):
-
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
     colors = seaborn_colors(catpuccin_colors)
@@ -306,6 +371,45 @@ def plot_combined_cost(bag_data_arr: list[ProcessedBag],
     printC("Done!", GREEN)
     plt.close()
 
+    if generate_video:
+        tmp_dir = save_dir + "/combined_cost_tmp"
+        if not os.path.isdir(tmp_dir):
+            os.makedirs(tmp_dir)
+
+        min_idx = 0
+        min_time = np.inf
+        for i, data in enumerate(bag_data_arr):
+            if data.t_fine.shape[0] < min_time:
+                min_time = data.t_fine.shape[0]
+                min_idx = i
+        
+        data_i = bag_data_arr[min_idx]
+        assert data_i.t_fine.shape[0] > 2
+        fps = 1 / np.mean(np.diff(data_i.t_fine))
+        for i in range(0, data_i.t_fine.shape[0], 1):
+            if i >= data_i.t_fine.shape[0]:
+                break
+            printC(f"Plotting cost video frames ({i:06d} / {data_i.t_fine.shape[0]:06d})...", BLUE, end="\r", flush=True)
+            fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH * 0.8, FIGURE_HEIGHT * 1.5))
+            for j, data in enumerate(bag_data_arr):
+                ax.plot(data.t_fine[:i], data.normalized_cost[:i], color=colors[j % len(colors)], label=data.bag_name.split("_")[-1])
+                ax.plot(data.t_fine[i], data.normalized_cost[i], color=colors[j % len(colors)], marker="o", markersize=3)
+            #ax.set_xlim(0.0, data_i.t_fine[-1])
+            ax.set_ylim(0.0, 1.3)
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Normalized Coverage Cost')
+            plt.legend(loc='lower left')
+            plt.tight_layout()
+            utils.save_fig(fig, tmp_dir, f"{data_i.t_fine[i]:.2f}_{i:06d}")
+            plt.close()
+        printC("\nDone!", GREEN)
+
+        printC(f"Generating video...", BLUE, end="")
+        create_video(tmp_dir, save_dir + "/combined_cost.mp4", fps=fps)
+        printC("Done!", GREEN)
+
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
 
 def plot_combined_global_map(bag_data_arr: list[ProcessedBag],
                              save_dir: str,
@@ -325,12 +429,10 @@ def plot_combined_global_map(bag_data_arr: list[ProcessedBag],
             pose_idx = np.argmin(np.abs(bag_data.t_coarse - t))
             robot_poses.append(bag_data.robot_poses[pose_idx])
 
-        printC(f"Plotting the combined global_map for t=${t}s...", BLUE, end="")
         plot_global_map(bag_data_arr[0].global_map,
                         save_dir,
                         f"global_combined_{t}",
                         map_colors[color_choice],
-                        robot_poses,
+                        np.array(robot_poses),
                         alt_marker_colors=colors
                         )
-        printC("Done!", GREEN)

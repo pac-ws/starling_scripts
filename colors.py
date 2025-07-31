@@ -20,3 +20,12 @@ map_colors = {
     "red" : {"idf": "Reds", "robot": "blue", "robot_marker": "x"},
     "blue" : {"idf": "Blues", "robot": "red", "robot_marker": "X"}
 }
+
+hacky_color_map = {
+    "0621_10r_1_test1": 'rgba(239, 159, 118, 1.0)', # Peach
+    "0621_10r_1_test5": 'rgba(166, 209, 137, 1.0)', # Green
+    "0621_10r_1_test7": 'rgba(202, 158, 230, 1.0)', # Mauve
+    "0621_10r_1_test4": 'rgba(133, 193, 220, 1.0)', # Sapphire
+    "0621_10r_1_test6": 'rgba(231, 130, 132, 1.0)', # Red
+    "0621_10r_1_test3": 'rgba(129, 200, 190, 1.0)', # Teal
+}
