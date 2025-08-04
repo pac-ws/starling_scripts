@@ -224,7 +224,8 @@ def plot_system_maps(system_maps: NDArray[np.float32],
                      en_axis_labels = False,
                      en_grid = False,
                      generate_video: bool = True,
-                     save_times: list[float] = [0., 15., 30., 45., 60.]
+                     save_times: list[float] = [0., 15., 30., 45., 60.],
+                     background_map: NDArray[np.float32] | None = None
                      ):
 
     tmp_dir = save_dir + f"/{bag_name}_tmp"
@@ -236,6 +237,8 @@ def plot_system_maps(system_maps: NDArray[np.float32],
         fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
         if global_map is not None:
             system_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), system_maps[i])
+            if background_map is not None:
+                ax.imshow(background_map, origin="lower")
             ax.imshow(global_map, origin="lower", cmap="gray_r", alpha=0.5)
             ax.imshow(system_map_masked, origin="lower", cmap=color_scheme["idf"], vmin=0.0, vmax=1.0)
         else:
@@ -322,7 +325,8 @@ def plot_global_map(global_map: NDArray[np.float32],
 def plot_bag(bag_data: ProcessedBag,
              save_dir: str,
              color_choice: str,
-             global_map_time: float = 60.
+             global_map_time: float = 60.,
+             background_map: NDArray[np.float32] | None = None
              ):
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -345,7 +349,8 @@ def plot_bag(bag_data: ProcessedBag,
                      save_dir,
                      bag_data.bag_name,
                      map_colors[color_choice],
-                     bag_data.global_map
+                     bag_data.global_map,
+                     background_map = background_map
                      )
 
 def plot_combined_cost(bag_data_arr: list[ProcessedBag],
@@ -390,9 +395,9 @@ def plot_combined_cost(bag_data_arr: list[ProcessedBag],
             if i >= data_i.t_fine.shape[0]:
                 break
             printC(f"Plotting cost video frames ({i:06d} / {data_i.t_fine.shape[0]:06d})...", BLUE, end="\r", flush=True)
-            fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH * 0.8, FIGURE_HEIGHT * 1.5))
+            fig, ax = plt.subplots(figsize=(TWO_COLUMN_WIDTH, FIGURE_HEIGHT * 0.7))
             for j, data in enumerate(bag_data_arr):
-                ax.plot(data.t_fine[:i], data.normalized_cost[:i], color=colors[j % len(colors)], label=data.bag_name.split("_")[-1])
+                ax.plot(data.t_fine[:i], data.normalized_cost[:i], color=colors[j % len(colors)], label=f"Exp.-{j}")
                 ax.plot(data.t_fine[i], data.normalized_cost[i], color=colors[j % len(colors)], marker="o", markersize=3)
             #ax.set_xlim(0.0, data_i.t_fine[-1])
             ax.set_ylim(0.0, 1.3)

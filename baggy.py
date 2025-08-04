@@ -56,7 +56,11 @@ def main(args):
             bag_data = load_bag(filepath)
             data.append(bag_data)
             if not args.combine:
-                bag_plotter.plot_bag(data[-1], args.output, args.color)
+                bag_plotter.plot_bag(data[-1],
+                                     args.output,
+                                     args.color,
+                                     background_map=args.background
+                                     )
     if args.command == "plot" and args.combine:
         bag_plotter.plot_combined_cost(data, args.output, args.color)
         bag_plotter.plot_combined_global_map(data, args.output, args.color)
@@ -154,7 +158,11 @@ if __name__ == "__main__":
                                 action="store_true",
                                 help="Create combine plots for the bags selection (use with match or all)"
                                 )
-                                
+    parser_plotter.add_argument("-b",
+                                "--background",
+                                action="store_true",
+                                help="Path to a background image to system maps"
+                                )
 
     parser_plot_xor = parser_plotter.add_mutually_exclusive_group(required=True)
     parser_plot_xor.add_argument("-a", "--all", action="store_true", help="Plot bags in the given directory")
