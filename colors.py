@@ -18,6 +18,7 @@ catpuccin_colors = [
 
 map_colors = {
     "red" : {"idf": "Reds", "robot": "blue", "robot_marker": "x"},
+    "buckner" : {"idf": "Reds", "robot": "orange", "robot_marker": "x"},
     "blue" : {"idf": "Blues", "robot": "red", "robot_marker": "X"}
 }
 

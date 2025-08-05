@@ -10,10 +10,12 @@ import numpy as np
 from numpy.typing import NDArray
 import coverage_control
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
 import cv2
 import seaborn as sns
 import seaborn.objects as so
 from seaborn import plotting_context, axes_style
+from skimage.transform import resize
 from colors import *
 from bag_process import ProcessedBag
 
@@ -232,18 +234,37 @@ def plot_system_maps(system_maps: NDArray[np.float32],
     if not os.path.isdir(tmp_dir):
         os.makedirs(tmp_dir)
 
-    for i in range(system_maps.shape[0]):
+    for i in range(0, system_maps.shape[0], 1):
         printC(f"Plotting map video frames ({i:06d} / {system_maps.shape[0]:06d})...", BLUE, end="\r", flush=True)
         fig, ax = plt.subplots(figsize=(ONE_COLUMN_WIDTH, FIGURE_HEIGHT))
         if global_map is not None:
-            system_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), system_maps[i])
             if background_map is not None:
-                ax.imshow(background_map, origin="lower")
-            ax.imshow(global_map, origin="lower", cmap="gray_r", alpha=0.5)
-            ax.imshow(system_map_masked, origin="lower", cmap=color_scheme["idf"], vmin=0.0, vmax=1.0)
+                system_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), system_maps[i])
+                background_image = plt.imread(background_map)
+                background_resized = resize(background_image, system_map_masked.shape, anti_aliasing=True)
+
+                visible_mask = ~np.isnan(system_maps[i])
+                fog_mask = np.isnan(system_maps[i])
+
+                ax.imshow(np.flipud(background_resized))
+
+                visible_map = np.where(visible_mask, system_maps[i], np.nan)
+               # overlay_map = np.where(visible_map == 0., system_maps[i], np.nan)
+               # ax.imshow(overlay_map, origin="lower", cmap=color_scheme["idf"], vmin=0., vmax=1.0, alpha=0.3)
+                #visible_map = np.where(visible_map > 0., system_maps[i], np.nan)
+                alpha_map = np.where(np.isnan(visible_map), 0., system_maps[i])
+                ax.imshow(visible_map, origin="lower", cmap=color_scheme["idf"], vmin=0., vmax=1.0, alpha=alpha_map)
+
+                fog_map = np.where(fog_mask, 1, np.nan)
+                ax.imshow(fog_map, origin="lower", cmap="gray", alpha=0.85)
+
+            else:
+                system_map_masked = np.ma.masked_where(np.isnan(system_maps[i]), system_maps[i])
+                ax.imshow(global_map, origin="lower", cmap="gray_r", alpha=0.5)
+                ax.imshow(system_map_masked, origin="lower", cmap=color_scheme["idf"], vmin=0.0, vmax=1.0)
         else:
             ax.imshow(system_maps[i], origin="lower", cmap=color_scheme["idf"]) #pyright: ignore
-        ax.scatter(poses[i,:,0], poses[i,:,1], marker=color_scheme["robot_marker"], color=color_scheme["robot"])
+        ax.scatter(poses[i,:,0], poses[i,:,1], marker=color_scheme["robot_marker"], color=color_scheme["robot"], edgecolors='black')
         if en_axis_labels:
             ax.set_xlabel("x (m)") 
             ax.set_ylabel("y (m)")
@@ -260,16 +281,24 @@ def plot_system_maps(system_maps: NDArray[np.float32],
                 c_sns = seaborn_colors(l)
                 spine.set_edgecolor(c_sns[0])
                 spine.set_linewidth(4)
-
         utils.save_fig(fig, tmp_dir, f"{t_coarse[i]:.2f}_{i:06d}") 
         if t_coarse[i] in save_times:
-            utils.save_fig(fig, save_dir, f"{bag_name}_sys_{t_coarse[i]:.2f}") 
+            if background_map is not None:
+                fn = f"{bag_name}_buckner_{t_coarse[i]:.2f}"
+            else:
+                fn = f"{bag_name}_sys_{t_coarse[i]:.2f}"
+
+            utils.save_fig(fig, save_dir, fn) 
         plt.close()
     printC("\nDone!", GREEN)
 
     if generate_video:
         printC(f"Generating video and saving in {save_dir}...", BLUE, end="")
-        create_video(tmp_dir, save_dir + "/" + bag_name + "_sys.mp4")
+        if background_map is not None:
+            vfn =save_dir + "/" + bag_name + "_buckner.mp4"
+        else:
+            vfn =save_dir + "/" + bag_name + "_sys.mp4"
+        create_video(tmp_dir, vfn)
         printC("Done!", GREEN)
 
 def img_num_key(s):

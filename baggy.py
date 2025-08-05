@@ -160,7 +160,8 @@ if __name__ == "__main__":
                                 )
     parser_plotter.add_argument("-b",
                                 "--background",
-                                action="store_true",
+                                type=str,
+                                default=None,
                                 help="Path to a background image to system maps"
                                 )
 
